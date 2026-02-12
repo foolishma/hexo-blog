@@ -3,7 +3,7 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: 博客
+title: 小新不吃青椒
 subtitle: ''
 description: ''
 keywords:
@@ -104,5 +104,5 @@ theme: butterfly
 deploy:
   type: git
   repo: https://github.com/foolishma/foolishma.github.io.git
-  branch: main
+  branch: master
   message: '[Hexo] Deploy from hexo-blog'
