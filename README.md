@@ -1,6 +1,7 @@
 # Hexo 博客 (Butterfly 主题)
 
-本地运行与部署说明。
+- **源码仓库**：[foolishma/hexo-blog](https://github.com/foolishma/hexo-blog)（本仓库）
+- **站点 / 构建产物**：[foolishma.github.io](https://github.com/foolishma/foolishma.github.io)（`hexo deploy` 推送目标）
 
 ## 本地开发
 
