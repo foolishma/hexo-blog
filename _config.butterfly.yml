@@ -366,12 +366,13 @@ share:
 
 # --------------------------------------
 # 评论（按需填写对应系统的 appId 等）
+# 文章页评论已开通，使用 Giscus（需在 https://giscus.app 配置并填写下方 repo/repo_id/category_id）
 # --------------------------------------
 comments:
-  use:
+  use: giscus
   text: true
   lazyload: false
-  count: false
+  count: true
   card_post_count: false
 
 disqus:
@@ -430,10 +431,11 @@ twikoo:
   visitor: false
   option:
 
+# Giscus：repo 已填。repo_id / category_id 必须从 https://giscus.app/zh-CN 页面的「启用」脚本里复制（选择本仓库与一个 Discussion 分类后会显示）
 giscus:
-  repo:
-  repo_id:
-  category_id:
+  repo: https://github.com/foolishma/hexo-blog.git
+  repo_id: # 从 giscus 页面脚本中的 data-repo-id 复制（形如 R_kgDOxxxxx）
+  category_id: # 从 giscus 页面脚本中的 data-category-id 复制（形如 DIC_kwDOxxxxx）
   light_theme: light
   dark_theme: dark
   js:
