@@ -19,6 +19,7 @@ menu:
   归档: "/archives/ || fas fa-archive"
   标签: "/tags/ || fas fa-tags"
   分类: "/categories/ || fas fa-folder-open"
+  简历: "/resume/ || fas fa-file-alt"
 
 # --------------------------------------
 # 代码块设置

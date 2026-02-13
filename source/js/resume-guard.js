@@ -26,11 +26,28 @@
       if (li) li.style.display = 'none';
     }
 
-    // 当前是简历页时：显示遮罩，输入访问码后才显示正文
+    // 当前是简历页时：全屏不透明蒙层 + 禁止滚动，输入访问码后才显示正文
     if (window.location.pathname.replace(/\/$/, '').indexOf('resume') !== -1) {
+      var html = document.documentElement;
+      var body = document.body;
+      var scrollY = window.scrollY || window.pageYOffset;
+
+      body.style.overflow = 'hidden';
+      body.style.position = 'fixed';
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.top = '-' + scrollY + 'px';
+      body.style.width = '100%';
+      html.style.overflow = 'hidden';
+
       var overlay = document.createElement('div');
       overlay.id = 'resume-lock-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#fff;font-family:system-ui,sans-serif;';
+      overlay.style.cssText =
+        'position:fixed;inset:0;z-index:2147483647;' +
+        'background:#111;' +
+        'display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;' +
+        'color:#fff;font-family:system-ui,sans-serif;' +
+        'overflow:auto;touch-action:none;';
       overlay.innerHTML =
         '<p style="margin:0;font-size:1.1rem;">简历页仅博主可见</p>' +
         '<p style="margin:0;font-size:0.9rem;color:#aaa;">请输入访问码</p>' +
@@ -44,6 +61,14 @@
         if (input && input.value === RESUME_SECRET) {
           setCookie('resume_ok', '1', 365);
           overlay.remove();
+          body.style.overflow = '';
+          body.style.position = '';
+          body.style.left = '';
+          body.style.right = '';
+          body.style.top = '';
+          body.style.width = '';
+          html.style.overflow = '';
+          window.scrollTo(0, scrollY);
         } else {
           var err = document.getElementById('resume-secret-err');
           if (err) err.style.display = 'block';
