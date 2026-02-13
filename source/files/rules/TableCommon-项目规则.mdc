@@ -1,0 +1,5514 @@
+---
+globs: 
+  - "**/listData.js"
+  - "**/index.vue"
+  - "**/TableCommon/**"
+alwaysApply: false
+description: TableCommon 列表页组件完整使用规则
+keywords: ["TableCommon", "列表页", "listData", "表格", "分页", "表格配置", "查询条件"]
+tags: ["组件", "表格", "列表"]
+size: large
+---
+
+# TableCommon 组件项目级使用规则
+
+## 📋 目录
+
+- [组件概述](#组件概述)
+- [开发规范](#开发规范) ⚠️ **重要：开发前必读**
+- [项目集成规范](#项目集成规范)
+- [配置文件详解 (listData.js)](#配置文件详解-listdatajs)
+- [组件插槽详解](#组件插槽详解)
+- [组件暴露的方法和属性](#组件暴露的方法和属性)
+- [单选多选配置](#单选多选配置)
+- [tableMethods 与按钮事件关联](#tablemethods-与按钮事件关联)
+- [常用功能组合使用](#常用功能组合使用)
+- [按钮状态控制 (showRowBtn)](#按钮状态控制-showrowbtn)
+- [formatter 和 slots 使用规范](#formatter-和-slots-使用规范)
+- [组件回调函数](#组件回调函数)
+- [禁止行为规范](#禁止行为规范)
+- [完整使用示例](#完整使用示例)
+
+## 组件概述
+
+TableCommon 是基于 VXE Table 封装的通用列表页组件，提供完整的 CRUD 操作、搜索、分页、权限控制、数据导出导入等功能。
+
+### 核心特性
+
+- ✅ **完整的 CRUD 操作**：支持新增、编辑、删除、查看等操作
+- ✅ **灵活的查询条件**：支持字典、自定义下拉、插槽等多种查询方式
+- ✅ **权限控制**：内置权限验证，支持按钮级别的权限控制
+- ✅ **数据导出导入**：内置导出导入功能，支持 Excel 等格式
+- ✅ **审批流程**：支持审批、流程跟踪等业务功能
+- ✅ **树形结构**：支持树形数据展示和操作
+- ✅ **单选多选**：支持单选框和多选框两种选择模式
+
+### 技术栈
+
+- **VXE Table**: 4.15.10 - 高性能表格组件
+- **VXE PC UI**: 4.8.20 - PC 端 UI 组件库
+- **Element Plus**: 2.11.3 - 基础 UI 组件库
+- **Vue 3**: 3.2.45 - Composition API
+- **Pinia**: 2.0.22 - 状态管理
+
+## 开发规范
+
+⚠️ **重要：以下规范是使用 TableCommon 组件时必须遵守的通用规则，请在使用前仔细阅读。**
+
+### 1. 金额格式化规范
+
+**规则**：表格中金额展示必须通过 `formatter` 函数自定义，并且配合 `formatAmount` 函数进行金额的格式化：千分符并保留两位小数。
+
+**实现方式**：
+
+```javascript
+// listData.js
+import { formatAmount } from '@/utils'
+
+{
+  title: '金额(元)',
+  dataIndex: 'amount',
+  width: 150,
+  align: 'right',
+  formatter: ({ cellValue }) => {
+    return formatAmount(cellValue)
+    // 显示：100,000.00（千分符并保留两位小数）
+  }
+}
+```
+
+**formatAmount 函数说明**：
+
+```javascript
+/**
+ * 金额格式化,千分符且保留两位小数
+ * @param {Number|String} amount - 金额数值
+ * @param {Boolean} isDecimal - 是否保留小数，默认true
+ * @param {Boolean} isThousand - 是否添加千分符，默认true
+ * @param {Number} decimalN - 保留小数位数，默认2位
+ * @returns {String} 格式化后的金额字符串
+ * @example
+ * formatAmount(1234567.89) // "1,234,567.89"
+ * formatAmount(1234567.89, false) // "1,234,568"
+ */
+```
+
+### 2. 时间格式化规范
+
+**规则**：时间格式化请用 `dayjs` 实现！
+
+**实现方式**：
+
+```javascript
+// listData.js
+import dayjs from 'dayjs'
+
+{
+  title: '创建时间',
+  dataIndex: 'createTime',
+  width: 180,
+  formatter: ({ cellValue }) => {
+    if (!cellValue) return '-'
+    return dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss')
+    // 显示：2024-01-01 10:30:00
+  }
+}
+```
+
+**常用格式化格式**：
+
+- `YYYY-MM-DD HH:mm:ss` - 完整日期时间
+- `YYYY-MM-DD` - 日期
+- `YYYY-MM-DD HH:mm` - 日期时间（不含秒）
+- `HH:mm:ss` - 时间
+- `YYYY年MM月DD日` - 中文日期格式
+
+### 3. 深拷贝规范
+
+**规则**：对象或数组的深拷贝请用 `lodash-es` 的 `cloneDeep` 实现！
+
+**实现方式**：
+
+```javascript
+import { cloneDeep } from 'lodash-es'
+
+// 在需要修改行数据时
+const handleEdit = (row) => {
+  editData.value = cloneDeep(row)
+  modalVisible.value = true
+}
+```
+
+### 4. 字典使用规范
+
+**规则**：
+
+1. ⚠️ **筛选条件是字典的情况，必须配合 `index.vue` 使用 `dictStore`、`proxy.useDict` 获取对应字典使用。**
+2. ⚠️ **列表页表格凡是涉及到字典的，都要先向开发者询问具体的字典 key 或是字典的枚举值再进行相关按钮状态判断或字典回显。**
+3. ⚠️ **一些常用的字典枚举需要提醒开发者将其定义在全局的规则文件中，方便后续 AI 参考枚举值进行判断。**
+
+**实现方式**：
+
+```vue
+<!-- index.vue -->
+<script setup>
+import { reactive, getCurrentInstance } from 'vue'
+
+const { proxy } = getCurrentInstance()
+
+// ⚠️ 必须使用 proxy.useDict 获取字典数据
+const { serviceTypeDict, statusDict } = proxy.useDict('service_type', 'service_status')
+
+// ⚠️ 必须使用 dictStore 传递给 TableCommon 组件
+const dictStore = reactive({
+  service_type: serviceTypeDict,
+  service_status: statusDict
+})
+</script>
+
+<template>
+  <TableCommon
+    :list-data="listData"
+    :methods="tableMethods"
+    :dict-store="dictStore"
+  />
+</template>
+```
+
+**注意事项**：
+
+- ⚠️ **必须先询问字典 key**：在涉及字典时，必须先向开发者询问具体的字典 key 或枚举值
+- ⚠️ **使用 dictStore**：必须通过 `dictStore` 将字典数据传递给 TableCommon 组件
+- ⚠️ **使用 proxy.useDict**：必须使用 `proxy.useDict` 获取字典数据，不要单独引入 `useDict`
+- ⚠️ **定义常用枚举**：常用的字典枚举应该定义在全局规则文件中，方便 AI 参考
+
+### 5. rowKey 配置规范
+
+**规则**：`rowKey` 必须配置且是唯一！用于按钮状态缓存和数据操作。
+
+**配置方式**：
+
+```javascript
+// listData.js
+export const listData = {
+  rowKey: 'id',  // ⚠️ 必须配置且是唯一
+  // ...
+}
+```
+
+**使用场景**：
+
+- 按钮状态缓存：`showRowBtn` 会使用 `row[listData.rowKey]` 作为缓存键
+- 数据操作：删除、编辑等操作需要使用 `rowKey` 作为唯一标识
+
+### 6. 状态判断规范
+
+**规则**：
+
+1. ⚠️ **状态判断中枚举仅供参考！以实际值为准。**
+2. ⚠️ **必须先向开发者询问具体的字典 key 或枚举值，然后直接使用字典值进行判断。**
+
+**实现方式**：
+
+```javascript
+const showRowBtn = (btn, row) => {
+  const btnStatus = {
+    show: true,
+    disabled: false
+  }
+  
+  // ⚠️ 状态判断中枚举仅供参考！以实际值为准
+  // ⚠️ 必须先向开发者询问具体的字典 key 或枚举值
+  
+  if (btn.id === 'module:function:edit') {
+    // ⚠️ 'NotSubmitted' 和 'Overruled' 是示例值，实际值以开发者提供为准
+    if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+  }
+  
+  return btnStatus
+}
+```
+
+**审批状态枚举示例**（仅供参考，实际值以开发者提供为准）：
+
+```javascript
+// ⚠️ 状态判断中枚举仅供参考！以实际值为准
+const ApprovalStatus = {
+  NotSubmitted: 'NotSubmitted',  // 未提交（示例）
+  UnderReview: 'UnderReview',    // 审核中（示例）
+  Audited: 'Audited',            // 已审核（示例）
+  Overruled: 'Overruled'         // 驳回（示例）
+}
+```
+
+## 项目集成规范
+
+### 1. 目录结构规范
+
+```
+src/views/[模块名]/[功能名]/
+├── index.vue          # 页面主文件（必须）
+├── listData.js        # 列表配置数据（必须）
+├── components/        # 页面专用组件（可选）
+│   └── modal.vue     # CRUD模态框组件
+└── api/              # 页面专用API（可选，通常放在 src/api/ 目录下）
+
+# 实际项目示例
+src/views/baseInfo/settings/
+├── index.vue          # 销售服务配置列表页
+├── listData.js        # 表格配置
+└── components/
+    └── modal.vue     # 新增/编辑模态框
+
+src/views/baseInfo/priceConfig/
+├── index.vue          # 价格配置调整列表页
+├── listData.js        # 表格配置
+└── components/
+    └── modal.vue     # 新增/编辑模态框
+```
+
+### 2. 命名规范
+
+- **页面文件**: 使用小驼峰命名（camelCase），如 `userList.vue`、`serviceConfig.vue`
+- **配置文件**: 统一命名为 `listData.js`
+- **缓存键**: 使用模块名+功能名，如 `serviceConfig`、`priceConfig`
+- **权限标识**: 使用 `模块:功能:操作` 格式，如 `baseInfo:settings:edit`、`system:user:delete`
+- **API 文件**: 按模块组织，如 `src/api/baseInfo/serviceConfig.js`
+
+## 配置文件详解 (listData.js)
+
+### 基础配置模板（完整注释版）
+
+```javascript
+export const listData = {
+  // ========== 页面基础信息 ==========
+  /**
+   * name: 页面标识
+   * @type {string}
+   * @description 用于页面标识，通常与模块名和功能名相关
+   * @example 'serviceConfig'、'priceConfig'
+   */
+  name: '模块名称',
+
+  /**
+   * title: 页面显示标题
+   * @type {string}
+   * @description 页面标题，用于显示在页面头部（如果使用）
+   * @example '销售服务配置'、'价格配置调整'
+   */
+  title: '页面标题',
+
+  /**
+   * cacheKey: 唯一缓存键
+   * @type {string}
+   * @description 用于缓存表格状态（列宽、排序等），必须唯一
+   * @example 'serviceConfig'、'priceConfig'
+   * @note 建议使用模块名+功能名的组合，确保全局唯一
+   */
+  cacheKey: 'uniqueKey',
+
+  // ========== 表格基础配置 ==========
+  /**
+   * hideSelection: 是否隐藏选择列
+   * @type {boolean}
+   * @default false
+   * @description 设置为 true 时，隐藏表格左侧的选择框列（多选/单选）
+   * @example false - 显示选择列（默认）
+   * @example true - 隐藏选择列（纯展示表格）
+   */
+  hideSelection: false,
+
+  /**
+   * hasPager: 是否启用分页
+   * @type {boolean}
+   * @default true
+   * @description 设置为 false 时，不显示分页器，加载所有数据
+   * @example true - 启用分页（默认）
+   * @example false - 不分页，加载全部数据
+   */
+  hasPager: true,
+
+  /**
+   * hiddenIndex: 是否隐藏序号列
+   * @type {boolean}
+   * @default false
+   * @description 设置为 true 时，隐藏表格左侧的序号列
+   * @example false - 显示序号列（默认）
+   * @example true - 隐藏序号列
+   */
+  hiddenIndex: false,
+
+  /**
+   * rowKey: 主表ID字段名
+   * @type {string}
+   * @default 'id'
+   * @description ⚠️ 必须是行内唯一标识字段，用于：
+   *   - 行数据唯一标识
+   *   - 选择框关联
+   *   - 按钮状态缓存
+   *   - 树形结构的父子关系
+   * @example 'id'、'userId'、'contractId'
+   * @note 如果后端返回的ID字段不是 'id'，必须指定正确的字段名
+   */
+  rowKey: 'id',
+
+  // ========== 树形结构配置 ==========
+  /**
+   * isTree: 是否启用树形结构
+   * @type {boolean}
+   * @default false
+   * @description 设置为 true 时，表格以树形结构展示数据
+   * @example false - 普通列表（默认）
+   * @example true - 树形结构
+   * @note 启用树形结构时，需要配合 parentField 和 childrenField 使用
+   */
+  isTree: false,
+
+  /**
+   * isTransform: 是否转换树形结构
+   * @type {boolean}
+   * @default false
+   * @description 当后端返回嵌套的树形数据时，设置为 true 会自动转换为扁平结构
+   * @example false - 后端返回扁平数据（默认）
+   * @example true - 后端返回嵌套数据，需要转换
+   * @note 仅在 isTree: true 时有效
+   */
+  isTransform: false,
+
+  /**
+   * parentField: 父级字段名
+   * @type {string}
+   * @default 'parentId'
+   * @description 树形结构中，标识父级ID的字段名
+   * @example 'parentId'、'parent_id'、'pid'
+   * @note 仅在 isTree: true 时有效
+   */
+  parentField: 'parentId',
+
+  /**
+   * childrenField: 子级字段名
+   * @type {string}
+   * @default 'children'
+   * @description 树形结构中，标识子级数组的字段名
+   * @example 'children'、'childList'、'subItems'
+   * @note 仅在 isTree: true 且 isTransform: true 时有效
+   */
+  childrenField: 'children',
+
+  // ========== API配置 ==========
+  /**
+   * api: API接口配置
+   * @type {Object}
+   * @description 表格数据请求接口配置
+   */
+  api: {
+    /**
+     * type: 请求类型
+     * @type {'get' | 'post'}
+     * @default 'post'
+     * @description HTTP请求方法
+     * @example 'post' - POST请求（项目标准）
+     * @example 'get' - GET请求（特殊场景）
+     */
+    type: 'post',
+
+    /**
+     * url: 接口地址
+     * @type {string}
+     * @description 完整的接口路径，不需要包含 baseURL
+     * @example '/sale/serviceConfig/page'
+     * @example '/admin/projectMasterData/list'
+     */
+    url: '/api/endpoint',
+
+    /**
+     * unTransByQs: 是否不转换查询参数
+     * @type {boolean}
+     * @default true
+     * @description POST请求时，是否将查询参数转换为 query 对象
+     * @example true - POST请求，参数在 body 中（项目标准）
+     * @example false - GET请求，参数在 URL 中
+     */
+    unTransByQs: true,
+
+    /**
+     * disableFirst: 是否禁用首次加载
+     * @type {boolean}
+     * @default false
+     * @description 设置为 true 时，组件挂载时不自动加载数据
+     * @example false - 自动加载（默认）
+     * @example true - 手动调用 loadData() 加载
+     */
+    disableFirst: false
+  },
+
+  // ========== 列配置 ==========
+  /**
+   * columns: 表格列配置数组
+   * @type {Array<Object>}
+   * @description 定义表格的所有列，包括数据列和操作列
+   * @see [列配置详解](#列配置详解-columns)
+   */
+  columns: [],
+
+  // ========== 顶部按钮配置 ==========
+  /**
+   * commands: 顶部工具栏按钮配置数组
+   * @type {Array<Object>}
+   * @description 定义表格顶部工具栏的按钮
+   * @see [顶部按钮配置详解](#顶部按钮配置详解-commands)
+   */
+  commands: [],
+
+  // ========== 查询条件配置 ==========
+  /**
+   * queryCondition: 查询条件配置数组
+   * @type {Array<Object>}
+   * @description 定义表格上方的查询表单条件
+   * @see [查询条件配置详解](#查询条件配置详解-querycondition)
+   */
+  queryCondition: [],
+
+  // ========== 其他配置 ==========
+  /**
+   * hideSearch: 是否隐藏搜索表单
+   * @type {boolean}
+   * @default false
+   * @description 设置为 true 时，隐藏整个查询条件表单区域
+   * @example false - 显示搜索表单（默认）
+   * @example true - 隐藏搜索表单
+   */
+  hideSearch: false
+}
+```
+
+### API 配置规范
+
+```javascript
+// POST 请求配置（项目标准）
+api: {
+  type: 'post',
+  url: '/afterSales/serviceConfig/page',
+  unTransByQs: true
+}
+
+// 价格配置API示例
+api: {
+  type: 'post',
+  url: '/sale/priceConfig/page',
+  unTransByQs: true
+}
+
+// GET 请求配置（特殊场景）
+api: {
+  type: 'get',
+  url: '/admin/projectMasterData/list',
+  unTransByQs: false
+}
+```
+
+### 列配置详解 (columns)
+
+列配置是 `columns` 数组，每个元素代表表格的一列。列分为两种类型：**数据列**和**操作列**。
+
+#### 数据列通用属性
+
+```javascript
+columns: [
+  {
+    /**
+     * title: 列标题
+     * @type {string}
+     * @description 表格列头显示的文字
+     * @example '服务类型'、'创建时间'、'金额(元)'
+     * @note 单位统一放在表头，如：'金额(元)'、'面积(㎡)'、'比例(%)'
+     */
+    title: '服务类型',
+
+    /**
+     * dataIndex: 数据字段名
+     * @type {string}
+     * @description 对应后端返回数据中的字段名
+     * @example 'serviceType'、'createTime'、'amount'
+     * @note 必须与接口返回的字段名完全一致
+     */
+    dataIndex: 'serviceType',
+
+    /**
+     * width: 固定列宽（像素）
+     * @type {number}
+     * @description 列的固定宽度，单位：px
+     * @example 120、150、200
+     * @note ⚠️ width 和 minWidth 不能同时存在，至少有一列必须配置 minWidth
+     */
+    width: 120,
+
+    /**
+     * minWidth: 最小列宽（像素）
+     * @type {number}
+     * @description 列的最小宽度，列宽可自适应，单位：px
+     * @example 100、150、180
+     * @note ⚠️ width 和 minWidth 不能同时存在，至少有一列必须配置 minWidth
+     */
+    minWidth: 150,
+
+    /**
+     * resizable: 是否可调整列宽
+     * @type {boolean}
+     * @default true
+     * @description 设置为 true 时，用户可以通过拖拽列边界调整列宽
+     * @example true - 可调整（默认）
+     * @example false - 不可调整
+     */
+    resizable: true,
+
+    /**
+     * showOverflow: 是否显示省略号
+     * @type {boolean}
+     * @default true
+     * @description 当内容超出列宽时，是否显示省略号（...）
+     * @example true - 显示省略号（默认）
+     * @example false - 不显示省略号，内容可能溢出
+     */
+    showOverflow: true,
+
+    /**
+     * align: 对齐方式
+     * @type {'left' | 'center' | 'right'}
+     * @default 'left'
+     * @description 列内容的对齐方式
+     * @example 'left' - 左对齐（文本内容，默认）
+     * @example 'center' - 居中对齐（状态、类型等固定长度内容）
+     * @example 'right' - 右对齐（数字、金额等数值内容）
+     * @note 表头和单元格对齐方式应保持一致
+     */
+    align: 'left',
+
+    /**
+     * fixed: 固定列位置
+     * @type {'left' | 'right' | false}
+     * @default false
+     * @description 固定列在表格的左侧或右侧，横向滚动时保持可见
+     * @example 'left' - 固定在左侧
+     * @example 'right' - 固定在右侧（操作列常用）
+     * @example false - 不固定（默认）
+     */
+    fixed: false,
+
+    /**
+     * slots: 自定义插槽配置
+     * @type {Object}
+     * @description 使用插槽自定义列内容渲染
+     * @example { default: 'featureColumn' } - 使用 featureColumn 插槽
+     * @note ⚠️ 优先使用 formatter，只有定制化功能才使用插槽
+     * @see [formatter 和 slots 使用规范](#formatter-和-slots-使用规范)
+     */
+    slots: { default: 'featureColumn' },
+
+    /**
+     * formatter: 格式化函数
+     * @type {Function}
+     * @description 自定义单元格内容格式化
+     * @param {Object} params - 格式化参数
+     * @param {any} params.cellValue - 当前单元格的值
+     * @param {Object} params.row - 当前行数据
+     * @param {Object} params.column - 当前列配置
+     * @returns {string} 格式化后的显示内容
+     * @example ({ cellValue }) => cellValue || '-'
+     * @example ({ cellValue }) => cellValue ? '是' : '否'
+     * @note ⚠️ 优先使用 formatter，只有定制化功能才使用插槽
+     * @see [formatter 和 slots 使用规范](#formatter-和-slots-使用规范)
+     */
+    formatter: ({ cellValue }) => {
+      return cellValue || '-'
+    },
+
+    /**
+     * children: 二级表头配置
+     * @type {Array<Object>}
+     * @description 用于配置多级表头，支持二级表头嵌套
+     * @example [{ title: '基本信息', children: [{ title: '姓名', dataIndex: 'name' }] }]
+     * @note 二级表头下的子列配置与普通列配置相同
+     */
+    children: [
+      {
+        title: '子列1',
+        dataIndex: 'subField1',
+        width: 120
+      },
+      {
+        title: '子列2',
+        dataIndex: 'subField2',
+        width: 120
+      }
+    ]
+  }
+]
+```
+
+#### 二级表头配置详解
+
+**使用场景**：当需要将多个相关列组合在一起显示时，使用二级表头。
+
+**配置方式**：
+
+```javascript
+columns: [
+  {
+    title: '基本信息',  // 一级表头
+    align: 'center',
+    children: [  // 二级表头配置
+      {
+        title: '姓名',
+        dataIndex: 'name',
+        width: 120,
+        align: 'left'
+      },
+      {
+        title: '年龄',
+        dataIndex: 'age',
+        width: 100,
+        align: 'right'
+      },
+      {
+        title: '性别',
+        dataIndex: 'gender',
+        width: 100,
+        align: 'center'
+      }
+    ]
+  },
+  {
+    title: '金额信息',  // 一级表头
+    align: 'center',
+    children: [  // 二级表头配置
+      {
+        title: '单价(元)',
+        dataIndex: 'unitPrice',
+        width: 150,
+        align: 'right',
+        formatter: ({ cellValue }) => {
+          return formatAmount(cellValue)
+        }
+      },
+      {
+        title: '总价(元)',
+        dataIndex: 'totalPrice',
+        width: 150,
+        align: 'right',
+        formatter: ({ cellValue }) => {
+          return formatAmount(cellValue)
+        }
+      }
+    ]
+  }
+]
+```
+
+**注意事项**：
+
+- ⚠️ 二级表头下的子列配置与普通列配置相同
+- ⚠️ 一级表头可以设置 `align` 等属性，但通常不需要设置 `dataIndex`
+- ⚠️ 子列必须配置 `dataIndex` 用于数据绑定
+- ⚠️ 子列的宽度配置会影响整个一级表头的宽度
+
+#### 列宽配置规则
+
+⚠️ **重要规则：**
+
+1. **width 和 minWidth 不能同时存在**
+2. **至少有一列必须配置 minWidth**（用于自适应布局）
+
+```javascript
+// ✅ 正确配置
+columns: [
+  {
+    title: '项目名称',
+    dataIndex: 'projectName',
+    minWidth: 150,  // 自适应宽度
+    resizable: true,
+    showOverflow: true
+  },
+  {
+    title: '金额(元)',
+    dataIndex: 'amount',
+    width: 150,     // 固定宽度
+    align: 'right'
+  }
+]
+
+// ❌ 错误配置 - width 和 minWidth 同时存在
+{
+  title: '列名',
+  dataIndex: 'field',
+  width: 200,      // ❌ 不能同时存在
+  minWidth: 150    // ❌ 不能同时存在
+}
+```
+
+#### 对齐方式规范
+
+根据内容类型选择合适的对齐方式：
+
+| 内容类型 | 对齐方式 | 说明 | 示例 |
+|---------|---------|------|------|
+| 文本（长短不一） | `left` | 中文/英文文本，长度不固定 | 姓名、地址、备注 |
+| 文本（长度相同） | `center` | 固定长度的文本或状态 | 状态、类型、等级 |
+| 数字/金额 | `right` | 所有数值类型数据 | 金额、数量、百分比 |
+| 操作列 | `center` | 操作按钮组 | 编辑、删除、查看 |
+
+#### 列表组件插槽规范
+
+**⚠️ 重要：使用 featureColumn 插槽进行列内容自定义渲染**
+
+当列需要显示字典标签、自定义格式或其他复杂内容时，使用 `featureColumn` 插槽。
+
+**配置方式：**
+
+在 `listData.js` 中配置需要自定义渲染的列：
+
+```javascript
+export const listData = {
+  columns: [
+    {
+      title: '大业态',
+      dataIndex: 'bigBusinessType',
+      slots: { default: 'featureColumn' }  // 使用 featureColumn 插槽
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      slots: { default: 'featureColumn' }  // 使用 featureColumn 插槽
+    }
+  ]
+}
+```
+
+**在模板中使用：**
+
+```vue
+<!-- ✅ 正确方式 - 使用 featureColumn 插槽 -->
+<template #featureColumn="{ row, column }">
+  <template v-if="column.field == 'bigBusinessType'">
+    <dict-tag :options="bigBusinessTypeDict" :value="row.bigBusinessType" />
+  </template>
+
+  <template v-if="column.field == 'status'">
+    <dict-tag :options="statusDict" :value="row.status" />
+  </template>
+</template>
+```
+
+**使用场景：**
+
+- 字典值显示：使用 `dict-tag` 组件显示字典标签
+- 自定义格式化：复杂的数据格式化显示
+- 条件渲染：根据数据值显示不同的内容或样式
+
+#### 操作列配置
+
+操作列是特殊的列，用于显示行内操作按钮。
+
+```javascript
+{
+  /**
+   * title: 操作列标题
+   * @type {string}
+   * @default '操作'
+   * @description 操作列的标题，通常固定为 '操作'
+   */
+  title: '操作',
+
+  /**
+   * key: 操作列标识
+   * @type {string}
+   * @default 'active'
+   * @description 操作列的唯一标识，必须设置为 'active'
+   * @note 这是操作列的特殊标识，不能使用 dataIndex
+   */
+  key: 'active',
+
+  /**
+   * width: 操作列宽度
+   * @type {number}
+   * @default 165
+   * @description ⚠️ 操作列固定宽度值为 165px，不要随意修改
+   */
+  width: 165,
+
+  /**
+   * fixed: 固定位置
+   * @type {'right'}
+   * @description 操作列通常固定在右侧
+   */
+  fixed: 'right',
+
+  /**
+   * align: 对齐方式
+   * @type {'left'}
+   * @default 'left'
+   * @description 操作列内容左对齐
+   */
+  align: 'left',
+
+  /**
+   * slots: 操作列插槽
+   * @type {Object}
+   * @description 操作列必须使用 'active' 插槽
+   */
+  slots: { default: 'active' },
+
+  /**
+   * commands: 操作按钮配置数组
+   * @type {Array<Object>}
+   * @description 定义该行的操作按钮
+   * @see [行内按钮配置详解](#行内按钮配置详解)
+   */
+  commands: [
+    {
+      /**
+       * id: 权限标识
+       * @type {string}
+       * @description 按钮的权限标识，格式：'模块:功能:操作'
+       * @example 'baseInfo:settings:edit'
+       * @note 用于权限控制，无权限的按钮不会显示；不配置id默认有权限
+       */
+      id: 'baseInfo:settings:edit',
+
+      /**
+       * btnFun: 对应 tableMethods 中的方法名
+       * @type {string}
+       * @description 点击按钮时调用的 tableMethods 中的方法名
+       * @example 'edit'、'delete'、'view'
+       * @note 必须在 tableMethods 中定义对应的方法
+       */
+      btnFun: 'edit',
+
+      /**
+       * name: 按钮显示文字
+       * @type {string}
+       * @description 按钮上显示的文字
+       * @example '编辑'、'删除'、'查看'
+       */
+      name: '编辑',
+
+      /**
+       * icon: 按钮图标
+       * @type {string}
+       * @default ''
+       * @description ⚠️ 行内按钮 icon 固定设置为空字符串
+       * @note 行内按钮不需要配置图标，顶部按钮必须配置图标
+       */
+      icon: '',
+
+      /**
+       * type: 按钮类型
+       * @type {'primary' | 'danger'}
+       * @default 'primary'
+       * @description 按钮的样式类型
+       * @example 'primary' - 主要按钮（编辑、查看等，默认）
+       * @example 'danger' - 危险按钮（删除按钮）
+       * @note ⚠️ 只有删除按钮设置为 'danger'，其他全部是 'primary'；顶部按钮中：新增按钮必须是'primary'，其余不设置type;行内按钮全部设置 'primary'【删除按钮 'danger'】
+       */
+      type: 'primary'
+    },
+    {
+      id: 'baseInfo:settings:delete',
+      btnFun: 'delete',
+      name: '删除',
+      icon: '',
+      type: 'danger'  // ⚠️ 删除按钮必须是 'danger'
+    }
+  ]
+}
+```
+
+#### 列配置完整示例
+
+```javascript
+columns: [
+  // 序号列（自动生成，无需配置）
+  // 选择列（自动生成，无需配置，除非 hideSelection: true）
+
+  // 普通数据列 - 文本左对齐
+  {
+    title: '项目名称',
+    dataIndex: 'projectName',
+    minWidth: 180,
+    resizable: true,
+    showOverflow: true,
+    align: 'left'
+  },
+
+  // 普通数据列 - 状态居中对齐（使用插槽显示字典标签）
+  {
+    title: '状态',
+    dataIndex: 'status',
+    width: 100,
+    align: 'center',
+    slots: { default: 'featureColumn' }
+  },
+
+  // 普通数据列 - 金额右对齐（使用 formatter 格式化）
+  // ⚠️ 金额格式化规范请参考 [开发规范 - 金额格式化规范](#1-金额格式化规范)
+  {
+    title: '金额(元)',
+    dataIndex: 'amount',
+    width: 150,
+    align: 'right',
+    formatter: ({ cellValue }) => {
+      return formatAmount(cellValue)
+    }
+  },
+
+  // 操作列
+  {
+    title: '操作',
+    key: 'active',
+    width: 165,
+    fixed: 'right',
+    align: 'left',
+    slots: { default: 'active' },
+    commands: [
+      {
+        id: 'module:function:edit',
+        btnFun: 'edit',
+        name: '编辑',
+        icon: '',
+        type: 'primary'
+      },
+      {
+        id: 'module:function:delete',
+        btnFun: 'delete',
+        name: '删除',
+        icon: '',
+        type: 'danger'
+      }
+    ]
+  }
+]
+```
+
+### 查询条件配置详解 (queryCondition)
+
+查询条件配置是 `queryCondition` 数组，每个元素代表一个查询表单控件。
+
+#### 通用属性
+
+每个查询条件配置项都包含以下通用属性：
+
+```javascript
+{
+  /**
+   * key: 查询参数字段名
+   * @type {string}
+   * @description 对应后端接口查询参数的字段名
+   * @example 'projectName'、'serviceType'、'status'
+   * @note 必须与后端接口参数名完全一致
+   */
+  key: 'projectName',
+
+  /**
+   * label: 标签文字
+   * @type {string}
+   * @description 查询条件前的标签文字
+   * @example '项目'、'服务类型'、'状态'
+   */
+  label: '项目',
+
+  /**
+   * controls: 控件类型
+   * @type {string}
+   * @description Element Plus 组件名称
+   * @example 'ElInput' - 输入框
+   * @example 'ElSelect' - 下拉选择
+   * @example 'ElDatePicker' - 日期选择器
+   * @example 'ElTreeSelect' - 树形选择器
+   * @note 必须是 Element Plus 组件名，且已全局注册
+   */
+  controls: 'ElInput',
+
+  /**
+   * props: 组件属性
+   * @type {Object}
+   * @description 传递给 Element Plus 组件的属性
+   * @example { placeholder: '请输入', clearable: true }
+   * @note 所有 Element Plus 组件支持的属性都可以在这里配置
+   */
+  props: {
+    placeholder: '请输入项目名称',
+    clearable: true,
+    maxlength: 50
+  }
+}
+```
+
+#### 1. 输入框 (ElInput)
+
+用于文本搜索、关键词查询等场景。
+
+```javascript
+{
+  key: 'projectName',
+  label: '项目名称',
+  controls: 'ElInput',
+  props: {
+    placeholder: '请输入项目名称',
+    clearable: true,        // ⚠️ 必须配置 clearable
+    maxlength: 50          // 最大输入长度
+  }
+}
+```
+
+#### 2. 字典下拉选择 (ElSelect + dictKey)
+
+使用字典数据填充下拉选项，支持单选和多选。
+
+**单选字典：**
+
+```javascript
+{
+  key: 'serviceType',
+  label: '服务类型',
+  controls: 'ElSelect',
+  props: {
+    placeholder: '请选择服务类型',
+    clearable: true,       // ⚠️ 必须配置 clearable
+    filterable: true       // ⚠️ 必须配置 filterable（支持搜索）
+  },
+  /**
+   * dictKey: 字典类型标识
+   * @type {string}
+   * @description 字典类型标识，对应后端字典接口的字典类型
+   * @example 'service_type'、'service_status'
+   * @note 字典数据会自动从字典接口获取并转换为选项格式
+   */
+  dictKey: 'service_type'
+}
+```
+
+**多选字典：**
+
+```javascript
+{
+  key: 'status',
+  label: '状态',
+  controls: 'ElSelect',
+  props: {
+    placeholder: '请选择状态',
+    clearable: true,       // ⚠️ 必须配置 clearable
+    filterable: true,     // ⚠️ 必须配置 filterable
+    multiple: true         // 多选模式
+  },
+  dictKey: 'service_status'
+}
+```
+
+#### 3. 自定义下拉列表 (ElSelect + options)
+
+不使用字典，手动定义选项列表。
+
+```javascript
+{
+  key: 'userType',
+  label: '用户类型',
+  controls: 'ElSelect',
+  props: {
+    placeholder: '请选择用户类型',
+    clearable: true,
+    filterable: true
+  },
+  /**
+   * options: 选项数组
+   * @type {Array<{label: string, value: any}>}
+   * @description 手动定义的选项列表
+   * @example [{ label: '管理员', value: 'admin' }, { label: '普通用户', value: 'user' }]
+   * @note 不能与 dictKey 同时使用
+   */
+  options: [
+    { label: '管理员', value: 'admin' },
+    { label: '普通用户', value: 'user' },
+    { label: '访客', value: 'guest' }
+  ]
+}
+```
+
+#### 4. 日期范围查询 (ElDatePicker)
+
+用于日期范围筛选，支持单日期和日期范围。
+
+**日期范围（常用）：**
+
+```javascript
+{
+  key: 'configTime',
+  label: '配置时间',
+  controls: 'ElDatePicker',
+  props: {
+    type: 'daterange',              // 日期范围类型
+    placeholder: '请选择时间范围',
+    clearable: true,                // ⚠️ 必须配置 clearable
+    'start-placeholder': '开始日期',
+    'end-placeholder': '结束日期'
+  },
+  /**
+   * filterStartField: 开始时间字段名
+   * @type {string}
+   * @description 日期范围查询时，开始时间对应的后端参数字段名
+   * @example 'configStartTime'、'startTime'、'beginDate'
+   * @note 日期范围查询必须配置此字段
+   */
+  filterStartField: 'configStartTime',
+
+  /**
+   * filterEndField: 结束时间字段名
+   * @type {string}
+   * @description 日期范围查询时，结束时间对应的后端参数字段名
+   * @example 'configEndTime'、'endTime'、'endDate'
+   * @note 日期范围查询必须配置此字段
+   */
+  filterEndField: 'configEndTime'
+}
+```
+
+**单日期查询：**
+
+```javascript
+{
+  key: 'createDate',
+  label: '创建日期',
+  controls: 'ElDatePicker',
+  props: {
+    type: 'date',                   // 单日期类型
+    placeholder: '请选择日期',
+    clearable: true
+  }
+}
+```
+
+**日期时间范围：**
+
+```javascript
+{
+  key: 'submitTime',
+  label: '提交时间',
+  controls: 'ElDatePicker',
+  props: {
+    type: 'datetimerange',          // 日期时间范围类型
+    placeholder: '请选择时间范围',
+    clearable: true,
+    'start-placeholder': '开始时间',
+    'end-placeholder': '结束时间'
+  },
+  filterStartField: 'submitStartTime',
+  filterEndField: 'submitEndTime'
+}
+```
+
+#### 5. 自定义插槽 (formSlot)
+
+当需要复杂的联动查询或自定义组件时，使用插槽。
+
+**配置方式：**
+
+```javascript
+{
+  key: 'projectIdList',
+  label: '项目分期',
+  controls: 'ElSelect',  // 占位控件，实际使用插槽渲染
+  props: {
+    placeholder: '请选择项目分期'
+  }
+  // ⚠️ 不需要配置 dictKey 或 options，使用插槽自定义渲染
+}
+```
+
+**模板中使用：**
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- formSlot 插槽：自定义查询条件 -->
+  <template #formSlot="{ data, field }">
+    <template v-if="field === 'projectIdList'">
+      <!-- 使用自定义组件，如项目分期选择组件 -->
+      <ProjectInstallmentSearch
+        v-model="data[field]"
+        v-bind="{ field, data }"
+      />
+    </template>
+  </template>
+</TableCommon>
+```
+
+**插槽参数说明：**
+
+- `data`: 当前查询表单的数据对象（响应式）
+- `field`: 当前字段的 key 值
+
+**使用场景：**
+
+- ✅ 项目分期选择（需要项目影响分期的级联关系）
+- ✅ 复杂的联动查询
+- ✅ 自定义组件（如数字范围输入等）
+
+⚠️ **使用原则：能不使用插槽就尽量不使用插槽，除非某些定制化功能（如项目分期的筛选条件需要联动的情况）才使用插槽。**
+
+#### 6. 其他查询控件
+
+**树形选择器 (ElTreeSelect)：**
+
+```javascript
+{
+  key: 'departmentId',
+  label: '部门',
+  controls: 'ElTreeSelect',
+  props: {
+    placeholder: '请选择部门',
+    clearable: true,
+    filterable: true,      // ⚠️ 必须配置 filterable
+    multiple: false,       // 是否多选
+    data: treeData         // 树形数据
+  }
+}
+```
+
+**数字输入框 (ElInputNumber)：**
+
+> **⚠️ 详细配置规范**：el-input-number 的完整使用规范请参考 [vue-development-patterns.mdc](./vue-development-patterns.mdc) 中的"el-input-number 使用规范"章节。
+
+```javascript
+{
+  key: 'minAmount',
+  label: '最小金额',
+  controls: 'ElInputNumber',
+  props: {
+    placeholder: '请输入最小金额',
+    clearable: true,
+    min: 0,
+    max: 999999999,
+    precision: 2,
+    step: 0.01,
+    align: 'left',
+    'controls-position': 'right'
+  }
+}
+```
+
+**配置说明**：
+- 金额字段：`min: 0, max: 999999999, precision: 2, step: 0.01`
+- 百分比字段：`min: 0, max: 100, precision: 2, step: 0.01`
+- 整数字段：`step: 1`，无 precision 属性
+- 必须配置：`align: 'left'`、`controls-position: 'right'`
+
+#### 7. 特殊配置
+
+**数组字段转字符串（isJoin）：**
+
+当需要将数组类型的查询参数转换为逗号分隔的字符串时：
+
+```javascript
+{
+  key: 'projectStages',
+  label: '项目分期',
+  controls: 'ElSelect',
+  props: {
+    placeholder: '请选择项目分期',
+    clearable: true,
+    filterable: true,
+    multiple: true
+  },
+  /**
+   * isJoin: 是否转换为字符串
+   * @type {boolean}
+   * @description 设置为 true 时，数组值会转换为逗号分隔的字符串
+   * @example true - ['id1', 'id2'] -> 'id1,id2'
+   */
+  isJoin: true,
+
+  /**
+   * joinKey: 转换后的字段名
+   * @type {string}
+   * @description 转换后的参数字段名
+   * @example 'projectStageIds' - 后端接收 'id1,id2' 格式的字符串
+   */
+  joinKey: 'projectStageIds'
+}
+```
+
+#### 查询条件配置完整示例
+
+```javascript
+queryCondition: [
+  // 1. 文本输入框
+  {
+    key: 'projectName',
+    label: '项目名称',
+    controls: 'ElInput',
+    props: {
+      placeholder: '请输入项目名称',
+      clearable: true,
+      maxlength: 50
+    }
+  },
+
+  // 2. 字典下拉（单选）
+  {
+    key: 'serviceType',
+    label: '服务类型',
+    controls: 'ElSelect',
+    props: {
+      placeholder: '请选择服务类型',
+      clearable: true,
+      filterable: true
+    },
+    dictKey: 'service_type'
+  },
+
+  // 3. 字典下拉（多选）
+  {
+    key: 'status',
+    label: '状态',
+    controls: 'ElSelect',
+    props: {
+      placeholder: '请选择状态',
+      clearable: true,
+      filterable: true,
+      multiple: true
+    },
+    dictKey: 'service_status'
+  },
+
+  // 4. 自定义下拉
+  {
+    key: 'userType',
+    label: '用户类型',
+    controls: 'ElSelect',
+    props: {
+      placeholder: '请选择用户类型',
+      clearable: true,
+      filterable: true
+    },
+    options: [
+      { label: '管理员', value: 'admin' },
+      { label: '普通用户', value: 'user' }
+    ]
+  },
+
+  // 5. 日期范围
+  {
+    key: 'configTime',
+    label: '配置时间',
+    controls: 'ElDatePicker',
+    props: {
+      type: 'daterange',
+      placeholder: '请选择时间范围',
+      clearable: true,
+      'start-placeholder': '开始日期',
+      'end-placeholder': '结束日期'
+    },
+    filterStartField: 'configStartTime',
+    filterEndField: 'configEndTime'
+  },
+
+  // 6. 自定义插槽（项目分期）
+  {
+    key: 'projectIdList',
+    label: '项目分期',
+    controls: 'ElSelect',
+    props: {
+      placeholder: '请选择项目分期'
+    }
+  }
+]
+```
+
+### 字典配置规范
+
+⚠️ **重要：字典使用规范请参考 [开发规范 - 字典使用规范](#4-字典使用规范)。**
+
+**在 queryCondition 中使用字典**：
+
+```javascript
+// listData.js
+{
+  key: 'serviceType',
+  label: '服务类型',
+  controls: 'ElSelect',
+  props: {
+    placeholder: '请选择服务类型',
+    clearable: true,
+    filterable: true
+  },
+  dictKey: 'service_type'  // 字典类型标识
+}
+```
+
+**在 index.vue 中使用字典**（参考 [开发规范 - 字典使用规范](#4-字典使用规范)）：
+
+```vue
+<template>
+  <TableCommon
+    :list-data="listData"
+    :methods="tableMethods"
+    :dict-store="dictStore"
+  >
+    <template #featureColumn="{ row, column }">
+      <template v-if="column.field === 'status'">
+        <dict-tag :options="statusDict" :value="row.status" />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { reactive, getCurrentInstance } from 'vue'
+
+const { proxy } = getCurrentInstance()
+const { serviceTypeDict, statusDict } = proxy.useDict('service_type', 'service_status')
+
+const dictStore = reactive({
+  service_type: serviceTypeDict,
+  service_status: statusDict
+})
+</script>
+```
+
+## 组件插槽详解
+
+TableCommon 组件提供了多个插槽，用于自定义表格和查询条件的渲染。⚠️ **使用原则：能不使用插槽就尽量不使用插槽，除非某些定制化功能才使用插槽。**
+
+### 1. featureColumn 插槽
+
+**作用**：自定义表格列内容的渲染，主要用于字典标签显示、状态显示等定制化场景。
+
+**使用场景**：
+- ✅ 字典值转义显示（使用 `dict-tag` 组件）
+- ✅ 状态标签显示
+- ✅ 复杂的单元格内容渲染
+- ❌ 简单的文本格式化（应使用 `formatter`）
+
+**配置方式**：
+
+在 `listData.js` 的 `columns` 中配置：
+
+```javascript
+{
+  title: '状态',
+  dataIndex: 'status',
+  width: 100,
+  align: 'center',
+  slots: { default: 'featureColumn' }  // 启用 featureColumn 插槽
+}
+```
+
+**模板中使用**：
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- featureColumn 插槽：自定义列内容渲染 -->
+  <template #featureColumn="{ row, column }">
+    <!-- 根据列字段名判断，渲染不同的内容 -->
+    <template v-if="column.field === 'status'">
+      <dict-tag :options="statusDict" :value="row.status" />
+    </template>
+
+    <template v-if="column.field === 'serviceType'">
+      <dict-tag :options="serviceTypeDict" :value="row.serviceType" />
+    </template>
+
+    <!-- 自定义状态标签 -->
+    <template v-if="column.field === 'approvalStatus'">
+      <el-tag
+        :type="row.approvalStatus === 'Audited' ? 'success' : 'warning'"
+      >
+        {{ row.approvalStatus === 'Audited' ? '已审核' : '待审核' }}
+      </el-tag>
+    </template>
+  </template>
+</TableCommon>
+```
+
+**插槽参数说明**：
+
+- `row`: 当前行数据对象
+- `column`: 当前列配置对象
+  - `column.field`: 列的字段名（对应 `dataIndex`）
+  - `column.property`: 列的属性名（等同于 `field`）
+
+**注意事项**：
+
+- ⚠️ 空值会自动格式化为 `--`，无需手动处理
+- ⚠️ 优先使用 `formatter`，只有定制化功能才使用此插槽
+- ⚠️ 必须通过 `column.field` 或 `column.property` 判断当前列
+
+### 2. formSlot 插槽
+
+**作用**：自定义查询条件表单控件的渲染，用于复杂的联动查询或自定义组件。
+
+**使用场景**：
+- ✅ 项目分期选择（需要项目影响分期的级联关系）
+- ✅ 复杂的联动查询
+- ✅ 自定义组件（如数字范围输入等）
+- ❌ 简单的下拉选择（应使用字典或 options）
+
+**配置方式**：
+
+在 `listData.js` 的 `queryCondition` 中配置：
+
+```javascript
+{
+  key: 'projectIdList',
+  label: '项目分期',
+  controls: 'ElSelect',  // 占位控件，实际使用插槽渲染
+  props: {
+    placeholder: '请选择项目分期'
+  },
+  // ⚠️ 不需要配置 dictKey 或 options，使用插槽自定义渲染
+  slots: { default: 'formSlot' }
+}
+```
+
+**模板中使用**：
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- formSlot 插槽：自定义查询条件 -->
+  <template #formSlot="{ data, field }">
+    <!-- 根据字段名判断，渲染不同的组件 -->
+    <template v-if="field === 'projectIdList'">
+      <!-- 使用项目分期搜索组件 -->
+      <ProjectInstallmentSearch
+        v-model="data[field]"
+        v-bind="{ field, data }"
+      />
+    </template>
+
+    <!-- 数字范围输入 -->
+    <template v-if="field === 'amountRange'">
+      <NumberRange
+        v-model:start="data.amountStart"
+        v-model:end="data.amountEnd"
+      />
+    </template>
+  </template>
+</TableCommon>
+```
+
+**插槽参数说明**：
+
+- `data`: 当前查询表单的数据对象（响应式），可以直接修改 `data[field]` 来更新值
+- `field`: 当前字段的 `key` 值
+
+**注意事项**：
+
+- ⚠️ `data` 是响应式对象，直接修改 `data[field]` 即可更新表单值
+- ⚠️ 能不使用插槽就尽量不使用插槽，除非某些定制化功能（如项目分期的筛选条件需要联动的情况）才使用插槽
+
+### 3. custom-tabs 插槽
+
+**作用**：在表格顶部工具栏左侧添加自定义标签页（Tabs），用于切换不同的数据视图。
+
+**使用场景**：
+- ✅ 多 Tab 数据切换（如：全部、待审核、已审核）
+- ✅ 不同状态的数据展示
+- ✅ 分类数据展示
+
+**模板中使用**：
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- custom-tabs 插槽：自定义标签页 -->
+  <template #custom-tabs>
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+      <el-tab-pane label="全部" name="all" />
+      <el-tab-pane label="待审核" name="pending" />
+      <el-tab-pane label="已审核" name="approved" />
+    </el-tabs>
+  </template>
+</TableCommon>
+
+<script setup>
+import { ref } from 'vue'
+
+const activeTab = ref('all')
+
+const handleTabChange = (tabName) => {
+  // 根据 Tab 切换，更新查询条件并重新加载数据
+  tableRef.value?.loadData({ status: tabName })
+}
+</script>
+```
+
+**注意事项**：
+
+- 插槽内容会显示在工具栏左侧
+- 当同时使用 `custom-tabs` 和 `toolbar-other` 时，布局会自动调整
+
+### 4. toolbar-other 插槽
+
+**作用**：在表格顶部工具栏中间区域添加自定义内容，如统计信息、筛选按钮等。
+
+**使用场景**：
+- ✅ 显示统计信息（如：总金额、总数量等）
+- ✅ 额外的筛选按钮
+- ✅ 自定义工具栏内容
+
+**模板中使用**：
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- toolbar-other 插槽：自定义工具栏内容 -->
+  <template #toolbar-other>
+    <div class="toolbar-stats">
+      <span>总金额：{{ totalAmount }} 元</span>
+      <span>总数量：{{ totalCount }} 条</span>
+    </div>
+  </template>
+</TableCommon>
+```
+
+**注意事项**：
+
+- 插槽内容会显示在工具栏中间区域
+- 当同时使用 `custom-tabs` 和 `toolbar-other` 时，`toolbar-other` 会撑满剩余空间
+
+### 5. custom-table 插槽
+
+**作用**：完全自定义表格渲染，用于替换默认的 VXE Table 表格。
+
+**使用场景**：
+- ✅ 需要完全自定义表格布局
+- ✅ 使用其他表格组件（如 Element Plus Table）
+- ✅ 特殊的表格展示需求
+
+**模板中使用**：
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- custom-table 插槽：自定义表格 -->
+  <template #custom-table="{ tableData }">
+    <el-table :data="tableData" style="width: 100%">
+      <el-table-column prop="name" label="姓名" />
+      <el-table-column prop="age" label="年龄" />
+    </el-table>
+  </template>
+</TableCommon>
+```
+
+**插槽参数说明**：
+
+- `tableData`: 当前表格数据数组
+
+**注意事项**：
+
+- ⚠️ 使用此插槽后，TableCommon 的表格功能（分页、选择等）需要自行实现
+- ⚠️ 除非特殊需求，否则不建议使用此插槽
+
+### 6. nameDefault 插槽
+
+**作用**：自定义树形表格中名称列的渲染。
+
+**使用场景**：
+- ✅ 树形表格中名称列的自定义渲染
+- ✅ 需要在名称列添加图标、标签等
+
+**模板中使用**：
+
+```vue
+<TableCommon :list-data="listData" :methods="tableMethods">
+  <!-- nameDefault 插槽：自定义树形表格名称列 -->
+  <template #nameDefault="{ row }">
+    <el-icon><Folder /></el-icon>
+    <span>{{ row.name }}</span>
+  </template>
+</TableCommon>
+```
+
+**插槽参数说明**：
+
+- `row`: 当前行数据对象
+
+**注意事项**：
+
+- 仅在树形表格（`isTree: true`）中使用
+- 用于自定义名称列的显示
+
+### 插槽使用原则总结
+
+⚠️ **重要原则：能不使用插槽就尽量不使用插槽！**
+
+| 场景 | 推荐方式 | 不推荐方式 |
+|------|---------|-----------|
+| 简单的文本格式化 | `formatter` | `featureColumn` 插槽 |
+| 字典值转义 | `featureColumn` 插槽 + `dict-tag` | 手动格式化 |
+| 简单的下拉选择 | `dictKey` 或 `options` | `formSlot` 插槽 |
+| 复杂的联动查询 | `formSlot` 插槽 | 多个独立查询条件 |
+| 项目分期选择 | `formSlot` 插槽 + `ProjectInstallmentSearch` | 普通下拉选择 |
+
+**使用优先级**：
+
+1. **优先使用配置**：`formatter`、`dictKey`、`options` 等配置方式
+2. **定制化功能使用插槽**：只有配置方式无法满足需求时，才使用插槽
+3. **避免过度使用插槽**：插槽会增加代码复杂度，降低可维护性
+
+## 页面组件规范 (index.vue)
+
+### 基础模板
+
+```vue
+<template>
+  <div class="page-container">
+    <TableCommon
+      ref="tableRef"
+      :list-data="listData"
+      :methods="tableMethods"
+      :show-row-btn="showRowBtn"
+    >
+      <!-- 字典列插槽 -->
+      <template #featureColumn="{ row, column }">
+        <template v-if="column.property == 'serviceType'">
+          <dict-tag :options="serviceTypeDict" :value="row.serviceType" />
+        </template>
+
+        <template v-if="column.property == 'status'">
+          <dict-tag :options="serviceStatusDict" :value="row.serviceType" />
+        </template>
+      </template>
+    </TableCommon>
+
+    <!-- CRUD模态框 -->
+    <ServiceConfigModal
+      v-model="modalVisible"
+      :edit-data="editData"
+      @success="handleModalSuccess"
+    />
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, getCurrentInstance } from 'vue'
+import { ElMessageBox } from 'element-plus'
+import { listData } from './listData'
+import TableCommon from '@/components/TableCommon/index.vue'
+import ServiceConfigModal from './components/modal.vue'
+import { useHasPermi } from '@/hooks/useHasPermi'
+import { deleteServiceConfig } from '@/api/baseInfo/serviceConfig'
+
+/**
+ * batchRemoveFunc 批量删除
+ *
+ */
+import { useTableListFunc } from '@/hooks/useTableListFunc'
+const { batchRemoveFunc, removeFunc } = useTableListFunc()
+const { proxy } = getCurrentInstance()
+
+// 字典数据
+const { serviceTypeDict, serviceStatusDict } = proxy.useDict('service_type','service_status')
+
+// 表格引用
+const tableRef = ref(null)
+
+// 模态框控制
+const modalVisible = ref(false)
+const editData = ref(null)
+
+const reload = () => {
+  tableRef.value?.reload()
+}
+
+// 表格操作方法
+const tableMethods = {
+  // 新增
+  add: () => {
+    editData.value = null
+    modalVisible.value = true
+  },
+
+  // 编辑
+  edit: (row) => {
+    editData.value = { ...row }
+    modalVisible.value = true
+  },
+
+  // 批量删除/批量变更状态
+  muldelete: async (row) => {
+    batchRemoveFunc(
+      batchInvalidSalePriceAdjustmentConfig,// api接口
+      reload,// table的重置方法
+      '确认批量作废这些数据吗?',// 提示信息
+      tableRef,// 表格实例
+      'salePriceAdjustmentConfigId'// 传递给后端的id字段名
+    )
+  },
+  // 行内删除/单个变更状态
+  muldelete: async (row) => {
+    removeFunc(
+      batchInvalidSalePriceAdjustmentConfig,// api接口
+      { id: row.id },// 传参
+      reload,// 表格重置方法
+      ’确认删除当前数据吗‘
+      'salePriceAdjustmentConfigId'// 传递给后端的id字段名
+    )
+  },
+
+  // 查看详情
+  view: (row) => {
+    editData.value = { ...row }
+    modalVisible.value = true
+  }
+}
+
+// 行按钮显示控制
+const showRowBtn = (btn, row) => {
+  const bthStatsu = {
+    show: true,
+    disabled: false
+  }
+  return bthStatsu
+}
+
+// 模态框成功回调
+const handleModalSuccess = () => {
+  tableRef.value?.reload()
+}
+
+// 搜索事件
+const handleSearch = (query) => {
+  console.log('搜索参数:', query)
+}
+
+// 重置事件
+const handleReset = () => {
+  console.log('重置搜索')
+}
+</script>
+
+<style lang="scss" scoped>
+.page-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+}
+</style>
+```
+
+## 权限控制规范
+
+### 权限标识规范
+
+```javascript
+// 权限标识格式: 模块:功能:操作
+const permissions = {
+  // 用户管理模块
+  'user:list:view',      // 查看用户列表
+  'user:list:add',        // 新增用户
+  'user:list:edit',       // 编辑用户
+  'user:list:delete',     // 删除用户
+
+  // 订单管理模块
+  'order:list:view',      // 查看订单列表
+  'order:list:export',     // 导出订单
+  'order:list:audit'      // 审核订单
+}
+```
+
+### 按钮权限配置
+
+```javascript
+// 顶部按钮权限
+
+commands: [
+  {
+    id: 'user:list:add', // 权限标识
+    btnFun: 'add',
+    name: '新增用户',
+    icon: 'Plus',
+    type: 'primary' // **注意：配置项中type的配置，只有删除按钮是danger,只有新增按钮是primary，其他按钮是空字符串**
+  }
+]
+
+// 行操作按钮权限
+commands: [
+  {
+    id: 'user:list:edit', // 权限标识
+    btnFun: 'edit',
+    name: '编辑',
+    icon: '',
+    type: 'primary'
+  },
+  {
+    id: 'user:list:delete', // 权限标识
+    btnFun: 'delete',
+    name: '删除',
+    icon: '',
+    type: 'danger'
+  }
+]
+```
+
+## 数据格式规范
+
+### API 响应格式
+
+```javascript
+// 分页数据格式
+{
+  code: 200,
+  msg: 'success',
+  data: {
+    total: 100,           // 总记录数
+    records: [            // 数据列表
+      {
+        id: 1,
+        name: '用户名',
+        status: 1,
+        createTime: '2023-01-01 00:00:00'
+      }
+    ]
+  }
+}
+
+// 非分页数据格式
+{
+  code: 0,
+  msg: 'success',
+  data: [
+    {
+      id: 1,
+      name: '用户名',
+      status: 1
+    }
+  ]
+}
+```
+
+### 查询参数格式
+
+```javascript
+// GET 请求参数
+{
+  page: 1,                // 当前页
+  limit: 20,             // 每页数量
+  name: '搜索关键词',
+  status: 1,
+  startTime: '2023-01-01',
+  endTime: '2023-12-31'
+}
+
+// POST 请求参数
+{
+  page: 1,
+  limit: 20,
+  name: '搜索关键词',
+  status: 1,
+  startTime: '2023-01-01',
+  endTime: '2023-12-31'
+}
+```
+
+## 组件暴露的方法和属性
+
+TableCommon 组件通过 `defineExpose` 暴露了多个方法和属性，可以通过 `ref` 引用访问。
+
+### 使用方式
+
+```vue
+<template>
+  <TableCommon ref="tableRef" :list-data="listData" :methods="tableMethods" />
+</template>
+
+<script setup>
+import { ref } from 'vue'
+
+const tableRef = ref(null)
+
+// 访问组件暴露的方法和属性
+const handleAction = () => {
+  // 使用 tableRef.value.xxx 访问暴露的方法和属性
+  tableRef.value.reload()
+}
+</script>
+```
+
+### 暴露的方法和属性详解
+
+#### 1. gridRef
+
+**类型**：`Ref<ComponentPublicInstance>`
+
+**说明**：VXE Table 表格组件的实例引用，用于直接操作 VXE Table 的 API。
+
+**使用场景**：
+- 需要调用 VXE Table 的原生方法
+- 需要访问 VXE Table 的内部状态
+- 需要操作表格的选中、编辑等状态
+
+**使用示例**：
+
+```javascript
+// 获取 VXE Table 实例
+const vxeTable = tableRef.value.gridRef
+
+// 调用 VXE Table 的方法
+vxeTable.setCheckboxRow([row], true)  // 设置行选中
+vxeTable.clearCheckboxRow()            // 清空所有选中
+vxeTable.setEditRow(row, true)         // 设置行编辑状态
+vxeTable.getTableData()                // 获取表格数据
+```
+
+**注意事项**：
+- ⚠️ 除非特殊需求，否则不建议直接操作 `gridRef`
+- ⚠️ 优先使用 TableCommon 暴露的高级方法
+
+#### 2. selectRecords
+
+**类型**：`ComputedRef<Array<Object> | Object | null>`
+
+**说明**：当前选中的行数据，根据 `extendParams.type` 返回数组（多选）或对象（单选）。
+
+**使用场景**：
+- 批量操作（删除、导出等）
+- 获取选中数据进行处理
+- 判断是否有选中数据
+
+**使用示例**：
+
+```javascript
+// 多选模式（extendParams.type === 'checkbox'）
+const selectedRows = tableRef.value.selectRecords
+// 返回：Array<Object>，如：[{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
+
+// 单选模式（extendParams.type === 'radio'）
+const selectedRow = tableRef.value.selectRecords
+// 返回：Object | null，如：{ id: 1, name: '张三' } 或 null
+
+// 判断是否有选中数据
+if (tableRef.value.selectRecords?.length > 0) {
+  // 有选中数据
+}
+
+// 获取选中数据的 ID 数组
+const selectedIds = tableRef.value.selectRecords.map(row => row.id)
+```
+
+**注意事项**：
+- ⚠️ 多选模式返回数组，单选模式返回对象或 null
+- ⚠️ 如果 `hideSelection: true`，则始终返回空数组 `[]`
+
+#### 3. beforeSearchParams
+
+**类型**：`Ref<Object>`
+
+**说明**：上一次查询时的完整查询参数对象，包含分页、筛选条件等所有参数。
+
+**使用场景**：
+- **数据导出**：导出当前筛选条件下的数据
+- **参数传递**：将查询参数传递给其他页面或组件
+- **参数回显**：恢复之前的查询条件
+
+**使用示例**：
+
+```javascript
+// 导出当前筛选的数据
+const handleExport = () => {
+  exportExcel({
+    api: exportApi,
+    params: {
+      ...tableRef.value.beforeSearchParams  // 使用上次查询的参数
+    },
+    fileName: `数据导出_${new Date().getTime()}`,
+    fileExt: 'xlsx'
+  })
+}
+
+// 获取查询参数
+const getQueryParams = () => {
+  return tableRef.value.beforeSearchParams
+  // 返回：{ page: 1, limit: 20, projectName: 'xxx', status: '1', ... }
+}
+```
+
+**参数结构**：
+
+```javascript
+{
+  page: 1,                    // 当前页码
+  limit: 20,                  // 每页数量
+  projectName: 'xxx',         // 查询条件字段
+  status: '1',                // 查询条件字段
+  configStartTime: '2024-01-01 00:00:00',  // 日期范围开始时间
+  configEndTime: '2024-12-31 23:59:59',    // 日期范围结束时间
+  // ... 其他查询条件
+}
+```
+
+**注意事项**：
+- ⚠️ 此参数是**上一次查询时**的参数，不是实时参数
+- ⚠️ 如果需要实时查询参数，使用 `realtimeQueryParams`
+
+#### 4. realtimeQueryParams
+
+**类型**：`ComputedRef<Object>`
+
+**说明**：实时响应式查询参数对象，监听表单数据、分页参数等变化，实时返回完整的查询参数。
+
+**使用场景**：
+- 需要实时获取当前查询参数
+- 监听查询参数变化
+- 动态构建查询参数
+
+**使用示例**：
+
+```javascript
+import { watch } from 'vue'
+
+// 监听查询参数变化
+watch(
+  () => tableRef.value.realtimeQueryParams,
+  (newParams) => {
+    console.log('查询参数变化:', newParams)
+    // 执行相关逻辑
+  },
+  { deep: true }
+)
+
+// 获取实时查询参数
+const currentParams = tableRef.value.realtimeQueryParams
+```
+
+**与 beforeSearchParams 的区别**：
+
+| 属性 | 类型 | 说明 | 使用场景 |
+|------|------|------|---------|
+| `beforeSearchParams` | `Ref<Object>` | 上一次查询的参数（静态） | 导出数据、参数传递 |
+| `realtimeQueryParams` | `ComputedRef<Object>` | 实时查询参数（响应式） | 监听参数变化、动态构建参数 |
+
+**注意事项**：
+- ⚠️ `realtimeQueryParams` 是计算属性，会自动追踪依赖变化
+- ⚠️ 导出数据时建议使用 `beforeSearchParams`（已查询过的参数）
+
+#### 5. reload
+
+**类型**：`Function`
+
+**说明**：刷新表格数据，重新加载当前页的数据。
+
+**使用场景**：
+- 数据操作后刷新表格（新增、编辑、删除后）
+- 手动刷新数据
+- 重置查询条件后刷新
+
+**使用示例**：
+
+```javascript
+// 刷新表格数据
+const reload = () => {
+  tableRef.value?.reload()
+}
+
+// 在操作成功后刷新
+const handleSave = async () => {
+  await saveApi(formData)
+  proxy.$modal.msgSuccess('保存成功')
+  tableRef.value?.reload()  // 保存成功后刷新表格
+}
+
+// 在删除成功后刷新
+const handleDelete = async (id) => {
+  await deleteApi(id)
+  proxy.$modal.msgSuccess('删除成功')
+  tableRef.value?.reload()  // 删除成功后刷新表格
+}
+```
+
+**注意事项**：
+- ⚠️ `reload()` 会保持当前的查询条件和分页状态
+- ⚠️ 如果需要重置查询条件，先调用表单重置，再调用 `reload()`
+
+#### 6. loadData
+
+**类型**：`Function(formData?: Object)`
+
+**说明**：加载表格数据，可以传入额外的查询参数。
+
+**参数说明**：
+
+- `formData` (可选): 额外的查询参数对象，会与当前查询条件合并
+
+**使用场景**：
+- 动态更新查询条件并加载数据
+- Tab 切换时加载不同数据
+- 外部触发数据加载
+
+**使用示例**：
+
+```javascript
+// 加载数据（使用当前查询条件）
+tableRef.value?.loadData()
+
+// 加载数据（传入额外参数）
+tableRef.value?.loadData({
+  status: 'pending',      // 额外的查询条件
+  projectId: '123'
+})
+
+// Tab 切换时加载数据
+const handleTabChange = (tabName) => {
+  tableRef.value?.loadData({ status: tabName })
+}
+
+// 外部触发加载
+const refreshWithParams = (params) => {
+  tableRef.value?.loadData(params)
+}
+```
+
+**注意事项**：
+- ⚠️ `loadData()` 会合并传入的参数和当前查询条件
+- ⚠️ 传入的参数优先级高于当前查询条件
+- ⚠️ 如果 `api.disableFirst: true`，首次需要手动调用 `loadData()`
+
+#### 7. changeEditable
+
+**类型**：`Function(isEditable: boolean, row: Object)`
+
+**说明**：切换表格行的编辑状态，用于行内编辑功能。
+
+**参数说明**：
+
+- `isEditable`: 是否可编辑，`true` 为编辑状态，`false` 为取消编辑
+- `row`: 要切换编辑状态的行数据对象
+
+**使用场景**：
+- 行内编辑功能
+- 切换行的编辑/查看模式
+
+**使用示例**：
+
+```javascript
+// 开启行编辑
+const startEdit = (row) => {
+  tableRef.value?.changeEditable(true, row)
+}
+
+// 取消行编辑
+const cancelEdit = (row) => {
+  tableRef.value?.changeEditable(false, row)
+}
+
+// 在按钮点击时切换编辑状态
+const handleEditClick = (row) => {
+  if (row._originalData?.isEditing) {
+    // 当前是编辑状态，取消编辑
+    tableRef.value?.changeEditable(false, row)
+  } else {
+    // 当前不是编辑状态，开启编辑
+    tableRef.value?.changeEditable(true, row)
+  }
+}
+```
+
+**注意事项**：
+- ⚠️ 行内编辑功能需要配合 VXE Table 的编辑配置使用
+- ⚠️ 编辑状态会保存在 `row._originalData` 中
+    params: {
+      ...tableRef.value.beforeSearchParams  // 使用上次查询的参数
+    },
+    fileName: `数据导出_${new Date().getTime()}`,
+    fileExt: 'xlsx'
+  })
+}
+
+// 批量操作
+const handleBatchAction = () => {
+  const selectedRows = tableRef.value.selectRecords
+  if (!selectedRows || selectedRows.length === 0) {
+    proxy.$modal.msgError('请选择要操作的数据')
+    return
+  }
+  
+  const ids = selectedRows.map(row => row.id)
+  // 执行批量操作
+  console.log('选中的ID:', ids)
+}
+
+// 表格操作方法
+const tableMethods = {
+  // 新增
+  add: () => {
+    // 新增逻辑
+  },
+  
+  // 编辑
+  edit: (row) => {
+    // 编辑逻辑
+  },
+  
+  // 导出
+  export: handleExport
+}
+</script>
+```
+
+### 方法调用注意事项
+
+⚠️ **重要提示**：
+
+1. **使用可选链操作符**：`tableRef.value?.reload()` 避免组件未挂载时报错
+2. **异步操作后刷新**：数据操作（新增、编辑、删除）成功后，记得调用 `reload()` 刷新表格
+3. **导出使用 beforeSearchParams**：导出数据时使用 `beforeSearchParams`，而不是 `realtimeQueryParams`
+4. **选中数据判空**：使用 `selectRecords` 时，注意判断是否为空
+
+## 单选多选配置
+
+TableCommon 组件支持单选框和多选框两种选择模式，通过 `extendParams` 属性配置。
+
+### extendParams 属性说明
+
+`extendParams` 是传递给 TableCommon 组件的 props，用于配置扩展参数。
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :extend-params="extendParams"
+  />
+</template>
+
+<script setup>
+import { reactive } from 'vue'
+
+// extendParams 配置
+const extendParams = reactive({
+  /**
+   * type: 选择模式
+   * @type {'checkbox' | 'radio'}
+   * @default 'checkbox'
+   * @description 表格选择框的类型
+   * @example 'checkbox' - 多选模式（默认）
+   * @example 'radio' - 单选模式
+   */
+  type: 'checkbox',
+
+  /**
+   * query: 不可重置的查询条件
+   * @type {Object}
+   * @default {}
+   * @description 额外的查询条件，这些条件不会被重置按钮清除
+   * @example { projectId: '123', status: 'active' }
+   * @note 优先级高于表单查询条件
+   */
+  query: {}
+})
+</script>
+```
+
+### 1. 多选模式 (checkbox)
+
+**配置方式**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :extend-params="{ type: 'checkbox' }"
+  />
+</template>
+```
+
+**特点**：
+- ✅ 支持同时选择多行数据
+- ✅ 显示复选框（checkbox）
+- ✅ 可以全选/取消全选
+- ✅ `selectRecords` 返回数组格式
+
+**获取选中数据**：
+
+```javascript
+// 多选模式：selectRecords 返回数组
+const selectedRows = tableRef.value.selectRecords
+// 返回：Array<Object>
+// 示例：[{ id: 1, name: '张三' }, { id: 2, name: '李四' }]
+
+// 判断是否有选中数据
+if (selectedRows && selectedRows.length > 0) {
+  console.log('已选择', selectedRows.length, '条数据')
+  
+  // 获取选中数据的 ID 数组
+  const selectedIds = selectedRows.map(row => row.id)
+  // 示例：[1, 2, 3]
+}
+
+// 批量操作示例
+const handleBatchDelete = () => {
+  const selectedRows = tableRef.value.selectRecords
+  if (!selectedRows || selectedRows.length === 0) {
+    proxy.$modal.msgError('请选择要删除的数据')
+    return
+  }
+  
+  const ids = selectedRows.map(row => row.id)
+  batchDeleteApi(ids).then(() => {
+    proxy.$modal.msgSuccess('删除成功')
+    tableRef.value?.reload()
+  })
+}
+```
+
+**点击行选中**：
+
+在多选模式下，点击表格行会自动切换该行的选中状态：
+- 如果行已选中，点击后取消选中
+- 如果行未选中，点击后选中
+
+### 2. 单选模式 (radio)
+
+**配置方式**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :extend-params="{ type: 'radio' }"
+  />
+</template>
+```
+
+**特点**：
+- ✅ 只能选择一行数据
+- ✅ 显示单选框（radio）
+- ✅ 选择新行时，自动取消之前选中的行
+- ✅ `selectRecords` 返回对象或 null
+
+**获取选中数据**：
+
+```javascript
+// 单选模式：selectRecords 返回对象或 null
+const selectedRow = tableRef.value.selectRecords
+// 返回：Object | null
+// 示例：{ id: 1, name: '张三' } 或 null
+
+// 判断是否有选中数据
+if (selectedRow) {
+  console.log('已选择:', selectedRow.name)
+  
+  // 获取选中数据的 ID
+  const selectedId = selectedRow.id
+  // 示例：1
+}
+
+// 单条操作示例
+const handleView = () => {
+  const selectedRow = tableRef.value.selectRecords
+  if (!selectedRow) {
+    proxy.$modal.msgError('请选择要查看的数据')
+    return
+  }
+  
+  viewDetail(selectedRow.id)
+}
+```
+
+**点击行选中**：
+
+在单选模式下，点击表格行会选中该行，并自动取消之前选中的行。
+
+### 3. 隐藏选择列
+
+如果不需要选择功能，可以通过 `listData.hideSelection` 隐藏选择列：
+
+```javascript
+// listData.js
+export const listData = {
+  hideSelection: true,  // 隐藏选择列
+  // ... 其他配置
+}
+```
+
+**效果**：
+- 不显示选择框列
+- `selectRecords` 始终返回空数组 `[]`
+- 无法通过点击行选中数据
+
+### 4. 不可重置的查询条件
+
+通过 `extendParams.query` 配置不可重置的查询条件，这些条件不会被重置按钮清除。
+
+**使用场景**：
+- 从其他页面跳转过来，需要保持某些查询条件
+- 根据用户权限动态添加查询条件
+- 需要永久保留的查询条件
+
+**配置方式**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :extend-params="{
+      type: 'checkbox',
+      query: {
+        projectId: route.query.projectId,  // 从路由参数获取
+        status: 'active'                    // 固定条件
+      }
+    }"
+  />
+</template>
+
+<script setup>
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+// 或者使用响应式对象
+const extendParams = reactive({
+  type: 'checkbox',
+  query: {
+    projectId: computed(() => route.query.projectId),
+    status: 'active'
+  }
+})
+</script>
+```
+
+**注意事项**：
+- ⚠️ `extendParams.query` 中的条件优先级高于表单查询条件
+- ⚠️ 重置按钮不会清除 `extendParams.query` 中的条件
+- ⚠️ 这些条件会始终包含在查询参数中
+
+### 5. 完整配置示例
+
+**多选模式 + 不可重置查询条件**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :extend-params="extendParams"
+  />
+</template>
+
+<script setup>
+import { reactive, computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+// 多选模式配置
+const extendParams = reactive({
+  type: 'checkbox',  // 多选模式
+  query: {
+    // 从路由参数获取项目ID，作为不可重置的查询条件
+    projectId: computed(() => route.query.projectId),
+    // 固定查询条件
+    status: 'active'
+  }
+})
+
+// 批量操作
+const handleBatchAction = () => {
+  const selectedRows = tableRef.value.selectRecords
+  if (!selectedRows || selectedRows.length === 0) {
+    proxy.$modal.msgError('请选择要操作的数据')
+    return
+  }
+  
+  const ids = selectedRows.map(row => row.id)
+  // 执行批量操作
+  console.log('选中的ID:', ids)
+}
+</script>
+```
+
+**单选模式**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :extend-params="{ type: 'radio' }"
+  />
+</template>
+
+<script setup>
+// 单条操作
+const handleSingleAction = () => {
+  const selectedRow = tableRef.value.selectRecords
+  if (!selectedRow) {
+    proxy.$modal.msgError('请选择一条数据')
+    return
+  }
+  
+  // 执行单条操作
+  console.log('选中的数据:', selectedRow)
+}
+</script>
+```
+
+### 选择模式对比
+
+| 特性 | 多选模式 (checkbox) | 单选模式 (radio) |
+|------|-------------------|-----------------|
+| **配置** | `type: 'checkbox'` | `type: 'radio'` |
+| **默认值** | ✅ 是（默认） | ❌ 否 |
+| **选择数量** | 多行 | 单行 |
+| **选择框类型** | 复选框 | 单选框 |
+| **selectRecords 返回** | `Array<Object>` | `Object \| null` |
+| **全选功能** | ✅ 支持 | ❌ 不支持 |
+| **使用场景** | 批量操作（删除、导出等） | 单条操作（查看、编辑等） |
+
+### 注意事项
+
+⚠️ **重要提示**：
+
+1. **默认多选模式**：如果不配置 `extendParams.type`，默认使用多选模式（checkbox）
+2. **选中数据判空**：使用 `selectRecords` 时，注意判断是否为空
+3. **多选返回数组**：多选模式下，`selectRecords` 返回数组，需要判断 `length > 0`
+4. **单选返回对象**：单选模式下，`selectRecords` 返回对象或 null，需要判断对象是否存在
+5. **隐藏选择列**：如果 `hideSelection: true`，`selectRecords` 始终返回空数组 `[]`
+
+## tableMethods 与按钮事件关联
+
+TableCommon 组件通过 `tableMethods` 对象将按钮配置与事件处理函数关联起来。按钮配置中的 `btnFun` 字段对应 `tableMethods` 中的方法名。
+
+### 关联机制
+
+**工作原理**：
+
+1. **配置阶段**：在 `listData.js` 中配置按钮的 `btnFun` 字段
+2. **绑定阶段**：组件内部通过 `methods[btn.btnFun]` 访问对应方法
+3. **触发阶段**：点击按钮时，调用 `tableMethods` 中对应的方法
+
+### 1. 顶部按钮（commands）关联
+
+**配置位置**：`listData.js` 中的 `commands` 数组
+
+**配置方式**：
+
+```javascript
+// listData.js
+export const listData = {
+  commands: [
+    {
+      id: 'module:function:add',      // 权限标识
+      btnFun: 'add',                  // ⚠️ 对应 tableMethods 中的方法名
+      name: '新增',
+      icon: 'Plus',
+      type: 'primary'                 // ⚠️ 只有新增按钮是 primary，其他是空字符串
+    },
+    {
+      id: 'module:function:export',
+      btnFun: 'export',               // ⚠️ 对应 tableMethods 中的方法名
+      name: '导出',
+      icon: 'Download',
+      type: ''                        // ⚠️ 非新增按钮 type 为空字符串
+    }
+  ]
+}
+```
+
+**事件触发方式**：
+
+顶部按钮点击时，组件内部执行：
+
+```javascript
+// 组件内部逻辑（RightToolBar.vue）
+@click="methods[btn.btnFun]()"  // 直接调用，无参数
+```
+
+**tableMethods 定义**：
+
+```javascript
+// index.vue
+const tableMethods = {
+  /**
+   * add: 新增方法
+   * @description 顶部新增按钮点击时调用
+   * @note 无参数，直接调用
+   */
+  add: () => {
+    editData.value = null
+    modalVisible.value = true
+  },
+
+  /**
+   * export: 导出方法
+   * @description 顶部导出按钮点击时调用
+   * @note 无参数，通过 tableRef.value.selectRecords 获取选中数据
+   */
+  export: () => {
+    exportExcel({
+      api: exportApi,
+      params: {
+        ...tableRef.value?.beforeSearchParams  // 获取查询参数
+      },
+      fileName: `数据导出_${new Date().getTime()}`,
+      fileExt: 'xlsx'
+    })
+  },
+
+  /**
+   * batchDelete: 批量删除方法
+   * @description 顶部批量删除按钮点击时调用
+   * @note 无参数，通过 tableRef.value.selectRecords 获取选中数据
+   */
+  batchDelete: () => {
+    const records = tableRef.value?.selectRecords  // ⚠️ 通过表格实例获取选中数据
+    if (!records || records.length === 0) {
+      proxy.$modal.msgError('请选择要删除的数据')
+      return
+    }
+    
+    batchRemoveFunc(
+      batchDeleteApi,
+      reload,
+      '确认删除这些数据吗?',
+      tableRef,
+      'id'
+    )
+  }
+}
+```
+
+**参数获取方式**：
+
+顶部按钮的方法**无参数**，需要通过以下方式获取数据：
+
+1. **获取选中数据**：`tableRef.value.selectRecords`
+2. **获取查询参数**：`tableRef.value.beforeSearchParams`
+3. **获取实时查询参数**：`tableRef.value.realtimeQueryParams`
+
+**完整示例**：
+
+```javascript
+const tableMethods = {
+  // 新增 - 无参数
+  add: () => {
+    editData.value = null
+    modalVisible.value = true
+  },
+
+  // 导出 - 无参数，通过表格实例获取查询参数
+  export: () => {
+    exportExcel({
+      api: exportApi,
+      params: {
+        ...tableRef.value?.beforeSearchParams
+      },
+      fileName: `数据导出_${new Date().getTime()}`,
+      fileExt: 'xlsx'
+    })
+  },
+
+  // 批量删除 - 无参数，通过表格实例获取选中数据
+  batchDelete: () => {
+    const records = tableRef.value?.selectRecords
+    if (!records || records.length === 0) {
+      proxy.$modal.msgError('请选择要删除的数据')
+      return
+    }
+    
+    batchRemoveFunc(
+      batchDeleteApi,
+      reload,
+      '确认删除这些数据吗?',
+      tableRef,
+      'id'
+    )
+  }
+}
+```
+
+### 2. 行内按钮（columns.commands）关联
+
+**配置位置**：`listData.js` 中操作列的 `commands` 数组
+
+**配置方式**：
+
+```javascript
+// listData.js
+export const listData = {
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,
+      fixed: 'right',
+      slots: { default: 'active' },
+      commands: [
+        {
+          id: 'module:function:edit',
+          btnFun: 'edit',              // ⚠️ 对应 tableMethods 中的方法名
+          name: '编辑',
+          icon: '',
+          type: 'primary'              // ⚠️ 行内按钮 type 是 primary，删除是 danger
+        },
+        {
+          id: 'module:function:delete',
+          btnFun: 'delete',            // ⚠️ 对应 tableMethods 中的方法名
+          name: '删除',
+          icon: '',
+          type: 'danger'               // ⚠️ 删除按钮是 danger
+        }
+      ]
+    }
+  ]
+}
+```
+
+**事件触发方式**：
+
+行内按钮点击时，组件内部执行：
+
+```javascript
+// 组件内部逻辑（TableRowActions.vue -> TableCommon/index.vue）
+const handleButtonClick = (btn, row) => {
+  if (props.methods[btn.btnFun]) {
+    props.methods[btn.btnFun](row)  // ⚠️ 传递 row 参数
+  }
+}
+```
+
+**tableMethods 定义**：
+
+```javascript
+// index.vue
+const tableMethods = {
+  /**
+   * edit: 编辑方法
+   * @param {Object} row - 当前行数据对象
+   * @description 行内编辑按钮点击时调用，自动传递当前行数据
+   */
+  edit: (row) => {
+    editData.value = { ...row }      // ⚠️ 接收 row 参数
+    modalVisible.value = true
+  },
+
+  /**
+   * delete: 删除方法
+   * @param {Object} row - 当前行数据对象
+   * @description 行内删除按钮点击时调用，自动传递当前行数据
+   */
+  delete: (row) => {
+    removeFunc(
+      deleteApi,
+      row,                            // ⚠️ 直接传递 row 对象
+      reload,
+      '确认删除当前数据吗',
+      'id'
+    )
+  },
+
+  /**
+   * view: 查看方法
+   * @param {Object} row - 当前行数据对象
+   * @description 行内查看按钮点击时调用，自动传递当前行数据
+   */
+  view: (row) => {
+    editData.value = { ...row }
+    modalVisible.value = true
+    viewMode.value = true
+  }
+}
+```
+
+**参数说明**：
+
+行内按钮的方法**自动接收 `row` 参数**，`row` 是当前行的完整数据对象。
+
+**完整示例**：
+
+```javascript
+const tableMethods = {
+  // 编辑 - 接收 row 参数
+  edit: (row) => {
+    editData.value = { ...row }
+    modalVisible.value = true
+  },
+
+  // 删除 - 接收 row 参数
+  delete: (row) => {
+    removeFunc(
+      deleteApi,
+      row,              // ⚠️ 直接传递 row 对象
+      reload,
+      '确认删除当前数据吗',
+      'id'
+    )
+  },
+
+  // 查看 - 接收 row 参数
+  view: (row) => {
+    editData.value = { ...row }
+    modalVisible.value = true
+    viewMode.value = true
+  },
+
+  // 审核 - 接收 row 参数
+  approve: (row) => {
+    if (row.status != 'UnderReview' && row.status != 'Overruled') {
+      return proxy.$modal.msgError('当前状态禁止审批')
+    }
+    queryParams.value.id = row.id    // ⚠️ 从 row 中获取数据
+    approvalVisible.value = true
+  }
+}
+```
+
+### 3. 按钮事件关联流程图
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   按钮配置 (listData.js)                 │
+├─────────────────────────────────────────────────────────┤
+│ 顶部按钮: commands[].btnFun = 'add'                     │
+│ 行内按钮: columns[].commands[].btnFun = 'edit'          │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│              组件内部事件处理 (TableCommon)               │
+├─────────────────────────────────────────────────────────┤
+│ 顶部按钮: methods[btn.btnFun]()          // 无参数      │
+│ 行内按钮: methods[btn.btnFun](row)       // 传递 row    │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│              tableMethods 方法定义 (index.vue)           │
+├─────────────────────────────────────────────────────────┤
+│ add: () => { ... }                    // 无参数         │
+│ edit: (row) => { ... }                // 接收 row       │
+│ delete: (row) => { ... }              // 接收 row       │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 4. 参数取值方式总结
+
+#### 顶部按钮参数取值
+
+| 需要的数据 | 获取方式 | 示例 |
+|-----------|---------|------|
+| 选中数据 | `tableRef.value.selectRecords` | `const records = tableRef.value.selectRecords` |
+| 查询参数 | `tableRef.value.beforeSearchParams` | `const params = tableRef.value.beforeSearchParams` |
+| 实时查询参数 | `tableRef.value.realtimeQueryParams` | `const params = tableRef.value.realtimeQueryParams` |
+
+#### 行内按钮参数取值
+
+| 需要的数据 | 获取方式 | 示例 |
+|-----------|---------|------|
+| 当前行数据 | 方法参数 `row` | `edit: (row) => { const id = row.id }` |
+| 行数据字段 | `row.fieldName` | `const status = row.status` |
+| 行数据ID | `row[listData.rowKey]` | `const id = row[listData.rowKey]` |
+
+### 5. 按钮配置与 tableMethods 对应关系
+
+**配置示例**：
+
+```javascript
+// listData.js - 按钮配置
+export const listData = {
+  // 顶部按钮
+  commands: [
+    { id: 'module:function:add', btnFun: 'add', name: '新增', icon: 'Plus', type: 'primary' },
+    { id: 'module:function:export', btnFun: 'export', name: '导出', icon: 'Download', type: '' },
+    { id: 'module:function:batchDelete', btnFun: 'batchDelete', name: '批量删除', icon: 'Delete', type: '' }
+  ],
+  
+  // 行内按钮
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,
+      slots: { default: 'active' },
+      commands: [
+        { id: 'module:function:edit', btnFun: 'edit', name: '编辑', icon: '', type: 'primary' },
+        { id: 'module:function:delete', btnFun: 'delete', name: '删除', icon: '', type: 'danger' },
+        { id: 'module:function:view', btnFun: 'view', name: '查看', icon: '', type: 'primary' }
+      ]
+    }
+  ]
+}
+```
+
+**tableMethods 对应方法**：
+
+```javascript
+// index.vue - tableMethods 定义
+const tableMethods = {
+  // 顶部按钮方法（无参数）
+  add: () => { /* ... */ },
+  export: () => { /* ... */ },
+  batchDelete: () => { /* ... */ },
+  
+  // 行内按钮方法（接收 row 参数）
+  edit: (row) => { /* ... */ },
+  delete: (row) => { /* ... */ },
+  view: (row) => { /* ... */ }
+}
+```
+
+### 6. 常见错误和注意事项
+
+⚠️ **重要提示**：
+
+1. **方法名必须匹配**：`btnFun` 的值必须与 `tableMethods` 中的方法名完全一致
+2. **顶部按钮无参数**：顶部按钮的方法不接受参数，需要通过表格实例获取数据
+3. **行内按钮有参数**：行内按钮的方法自动接收 `row` 参数，无需手动传递
+4. **方法必须定义**：如果配置了 `btnFun`，必须在 `tableMethods` 中定义对应方法
+5. **参数类型正确**：行内按钮的 `row` 参数是对象，包含当前行的所有字段
+
+**错误示例**：
+
+```javascript
+// ❌ 错误：顶部按钮方法接收参数
+const tableMethods = {
+  add: (row) => {  // ❌ 顶部按钮不会传递参数
+    // ...
+  }
+}
+
+// ❌ 错误：行内按钮方法不接收参数
+const tableMethods = {
+  edit: () => {  // ❌ 行内按钮会自动传递 row 参数
+    // ...
+  }
+}
+
+// ❌ 错误：方法名不匹配
+// listData.js: btnFun: 'edit'
+// tableMethods: editRow: (row) => { ... }  // ❌ 方法名不匹配
+```
+
+**正确示例**：
+
+```javascript
+// ✅ 正确：顶部按钮无参数
+const tableMethods = {
+  add: () => {
+    editData.value = null
+    modalVisible.value = true
+  }
+}
+
+// ✅ 正确：行内按钮接收 row 参数
+const tableMethods = {
+  edit: (row) => {
+    editData.value = { ...row }
+    modalVisible.value = true
+  }
+}
+```
+
+## 常用功能组合使用
+
+TableCommon 组件提供了多种常用功能的实现方式，统一使用项目提供的 Hooks 和组件。
+
+> **⚠️ 消息提示规范**：关于 `proxy.$modal` 的使用规范和禁止使用 `ElMessage`、`ElNotification` 的详细说明，请参考 [vue-development-patterns.mdc](./vue-development-patterns.mdc) 中的"消息提示规范"章节。
+
+### 功能实现原则
+
+⚠️ **重要原则**：
+
+1. **统一使用 Hooks**：所有常用方法都使用项目提供的 Hooks，不要自己实现
+2. **使用公司组件**：审批、流程跟踪等功能使用公司提供的组件
+3. **禁止使用 ElMessage.confirm**：不得单独使用 `ElMessage.confirm` 实现确认对话框，统一使用 `proxy.$modal.confirm`
+4. **参数顺序**：严格按照 Hook 的参数顺序传递
+5. **错误处理**：Hooks 内部已处理错误，无需额外 try-catch
+
+### 1. 数据导出
+
+**使用场景**：导出当前筛选条件下的数据为 Excel 文件
+
+**实现方式**：使用 `exportExcel` Hook
+
+**API 接口封装**：
+
+```javascript
+// api/module/function.js
+import request from '@/utils/request'
+
+/**
+ * 导出数据
+ * @param {Object} params - 查询参数
+ * @returns {Promise} 返回文件流
+ */
+export function exportApi(params) {
+  return request({
+    url: '/module/function/export',
+    method: 'post',
+    data: params,
+    responseType: 'blob'  // ⚠️ 必须设置 responseType: 'blob'
+  })
+}
+```
+
+**tableMethods 实现**：
+
+```javascript
+import { exportExcel } from '@/hooks/useExport.js'
+import { exportApi } from '@/api/module/function'
+
+const tableMethods = {
+  /**
+   * export: 导出数据
+   * @description 顶部导出按钮点击时调用
+   * @note 无参数，通过表格实例获取查询参数
+   */
+  export: () => {
+    exportExcel({
+      api: exportApi,  // 导出 API 函数
+      params: {
+        ...tableRef.value?.beforeSearchParams  // ⚠️ 使用 beforeSearchParams 获取查询参数
+      },
+      fileName: `数据导出_${new Date().getTime()}`,  // 文件名（不含扩展名）
+      fileExt: 'xlsx'  // 文件扩展名
+    })
+  }
+}
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  commands: [
+    {
+      id: 'module:function:export',
+      btnFun: 'export',
+      name: '导出',
+      icon: 'Download',
+      type: ''  // ⚠️ 非新增按钮 type 为空字符串
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 必须传递 `api` 参数（导出 API 函数）
+- ⚠️ 使用 `tableRef.value?.beforeSearchParams` 获取当前查询条件
+- ⚠️ 文件名建议包含时间戳，避免重复
+- ⚠️ API 接口必须设置 `responseType: 'blob'`
+
+### 2. 数据导入
+
+**使用场景**：从 Excel 文件导入数据
+
+**实现方式**：使用 `importExcel` Hook
+
+**API 接口封装**：
+
+```javascript
+// api/module/function.js
+import request from '@/utils/request'
+
+/**
+ * 导入数据
+ * @param {FormData} formData - 文件表单数据
+ * @returns {Promise} 返回导入结果
+ */
+export function importApi(formData) {
+  return request({
+    url: '/module/function/import',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'  // ⚠️ 必须设置 Content-Type
+    }
+  })
+}
+
+/**
+ * 下载导入模板
+ * @returns {Promise} 返回文件流
+ */
+export function downloadTemplateApi() {
+  return request({
+    url: '/module/function/downloadTemplate',
+    method: 'get',
+    responseType: 'blob'  // ⚠️ 必须设置 responseType: 'blob'
+  })
+}
+```
+
+**tableMethods 实现**：
+
+```javascript
+import { importExcel } from '@/hooks/userImport.js'
+import { exportExcel } from '@/hooks/useExport.js'
+import { importApi, downloadTemplateApi } from '@/api/module/function'
+
+const tableMethods = {
+  /**
+   * import: 导入数据
+   * @description 顶部导入按钮点击时调用
+   * @note 无参数，Hook 内部处理文件选择
+   */
+  import: async () => {
+    await importExcel({
+      api: importApi,  // 导入 API 函数
+      successMsg: '导入成功',  // 成功提示
+      errorMsg: '导入失败',  // 失败提示
+      onSuccess: result => {
+        // 成功回调
+        if (result.code === 0) {
+          reload()  // 刷新表格
+        }
+      }
+    })
+  },
+
+  /**
+   * downloadTemplate: 下载模板
+   * @description 顶部下载模板按钮点击时调用
+   * @note 无参数，直接下载模板文件
+   */
+  downloadTemplate: () => {
+    exportExcel({
+      api: downloadTemplateApi,
+      fileName: `导入模板_${new Date().getTime()}`,
+      fileExt: 'xlsx',
+      successMsg: '下载成功',
+      errorMsg: '下载失败'
+    })
+  }
+}
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  commands: [
+    {
+      id: 'module:function:import',
+      btnFun: 'import',
+      name: '导入',
+      icon: 'Upload',
+      type: ''
+    },
+    {
+      id: 'module:function:downloadTemplate',
+      btnFun: 'downloadTemplate',
+      name: '下载模板',
+      icon: 'Download',
+      type: ''
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 使用 `importExcel` Hook 实现导入
+- ⚠️ 使用 `exportExcel` Hook 实现模板下载
+- ⚠️ 导入成功后通常需要刷新表格
+- ⚠️ 导入 API 接口必须设置 `Content-Type: 'multipart/form-data'`
+
+### 3. 行内删除
+
+**使用场景**：删除单行数据
+
+**实现方式**：使用 `removeFunc` Hook
+
+**API 接口封装**：
+
+```javascript
+// api/module/function.js
+import request from '@/utils/request'
+
+/**
+ * 删除数据
+ * @param {string} id - 数据ID
+ * @returns {Promise} 返回删除结果
+ */
+export function deleteApi(id) {
+  return request({
+    url: `/module/function/${id}`,
+    method: 'delete'
+  })
+}
+```
+
+**tableMethods 实现**：
+
+```javascript
+import { useTableListFunc } from '@/hooks/useTableListFunc'
+import { deleteApi } from '@/api/module/function'
+
+const { removeFunc } = useTableListFunc()
+
+const tableMethods = {
+  /**
+   * delete: 删除单行数据
+   * @param {Object} row - 当前行数据对象
+   * @description 行内删除按钮点击时调用，自动传递当前行数据
+   */
+  delete: row => {
+    removeFunc(
+      deleteApi,  // 删除 API 函数
+      row,  // 行数据对象
+      reload,  // 成功回调（刷新表格）
+      '确认删除当前数据吗',  // 确认提示文案
+      'id'  // ID 字段名（默认为 'id'）
+    )
+  }
+}
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,
+      fixed: 'right',
+      slots: { default: 'active' },
+      commands: [
+        {
+          id: 'module:function:delete',
+          btnFun: 'delete',
+          name: '删除',
+          icon: '',
+          type: 'danger'  // ⚠️ 删除按钮必须是 'danger'
+        }
+      ]
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 第一个参数是删除 API 函数
+- ⚠️ 第二个参数是行数据对象
+- ⚠️ 第三个参数是成功回调函数（通常是 `reload`）
+- ⚠️ 第四个参数是确认提示文案
+- ⚠️ 第五个参数是 ID 字段名（如果 ID 字段不是 `id`，需要指定）
+
+### 4. 批量删除
+
+**使用场景**：批量删除选中的多行数据
+
+**实现方式**：使用 `batchRemoveFunc` Hook
+
+**API 接口封装**：
+
+```javascript
+// api/module/function.js
+import request from '@/utils/request'
+
+/**
+ * 批量删除数据
+ * @param {Array<string>} ids - 数据ID数组
+ * @returns {Promise} 返回删除结果
+ */
+export function batchDeleteApi(ids) {
+  return request({
+    url: '/module/function/batchDelete',
+    method: 'post',
+    data: { ids }  // 或 data: ids，根据后端接口要求
+  })
+}
+```
+
+**tableMethods 实现**：
+
+```javascript
+import { useTableListFunc } from '@/hooks/useTableListFunc'
+import { batchDeleteApi } from '@/api/module/function'
+
+const { batchRemoveFunc } = useTableListFunc()
+
+const tableMethods = {
+  /**
+   * batchDelete: 批量删除数据
+   * @description 顶部批量删除按钮点击时调用
+   * @note 无参数，通过表格实例获取选中数据
+   */
+  batchDelete: () => {
+    batchRemoveFunc(
+      batchDeleteApi,  // 批量删除 API 函数（接收 ID 数组）
+      reload,  // 成功回调（刷新表格）
+      '确认删除这些数据吗?',  // 确认提示文案
+      tableRef,  // 表格实例引用（用于获取选中的数据）
+      'id'  // ID 字段名（默认为 'id'）
+    )
+  }
+}
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  commands: [
+    {
+      id: 'module:function:batchDelete',
+      btnFun: 'batchDelete',
+      name: '批量删除',
+      icon: 'Delete',
+      type: ''
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 第一个参数是批量删除 API 函数（接收 ID 数组）
+- ⚠️ 第二个参数是成功回调函数
+- ⚠️ 第三个参数是确认提示文案
+- ⚠️ 第四个参数是表格实例引用（用于获取选中的数据）
+- ⚠️ 第五个参数是 ID 字段名
+- ⚠️ Hook 内部会自动获取选中数据并提取 ID 数组
+
+### 5. 发起审批
+
+**使用场景**：单条或批量发起审批流程
+
+**实现方式**：使用 `isConfirmSubmitFunc` Hook
+
+**API 接口封装**：
+
+```javascript
+// api/module/function.js
+import request from '@/utils/request'
+
+/**
+ * 发起审批（单条）
+ * @param {string} id - 数据ID
+ * @returns {Promise} 返回发起结果
+ */
+export function startApproveApi(id) {
+  return request({
+    url: `/module/function/startApprove/${id}`,
+    method: 'post'
+  })
+}
+
+/**
+ * 批量发起审批
+ * @param {Array<string>} ids - 数据ID数组
+ * @returns {Promise} 返回发起结果
+ */
+export function batchStartApproveApi(ids) {
+  return request({
+    url: '/module/function/batchStartApprove',
+    method: 'post',
+    data: { ids }
+  })
+}
+```
+
+**tableMethods 实现**：
+
+```javascript
+import { useTableListFunc } from '@/hooks/useTableListFunc'
+import { startApproveApi, batchStartApproveApi } from '@/api/module/function'
+
+const { isConfirmSubmitFunc } = useTableListFunc()
+
+const tableMethods = {
+  /**
+   * start: 发起审批（单条）
+   * @param {Object} row - 当前行数据对象
+   * @description 行内发起审批按钮点击时调用
+   */
+  start: row => {
+    isConfirmSubmitFunc(
+      startApproveApi,  // 发起审批 API 函数
+      row.id,  // 数据ID（可以是字符串或数组）
+      reload,  // 成功回调
+      null,  // 取消回调（可选）
+      '确认发起审核吗？'  // 确认提示文案
+    )
+  },
+
+  /**
+   * batchStart: 批量发起审批
+   * @description 顶部批量发起审批按钮点击时调用
+   * @note 无参数，通过表格实例获取选中数据
+   */
+  batchStart: () => {
+    const records = tableRef.value?.selectRecords
+    if (!records || records.length === 0) {
+      proxy.$modal.msgError('请选择要发起审批的数据')
+      return
+    }
+    const ids = records.map(row => row.id)
+    isConfirmSubmitFunc(
+      batchStartApproveApi,
+      ids,  // ID 数组
+      reload,
+      null,
+      '确认发起审核吗？'
+    )
+  }
+}
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  commands: [
+    {
+      id: 'module:function:batchStart',
+      btnFun: 'batchStart',
+      name: '批量发起审批',
+      icon: '',
+      type: ''
+    }
+  ],
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,
+      slots: { default: 'active' },
+      commands: [
+        {
+          id: 'module:function:start',
+          btnFun: 'start',
+          name: '发起审批',
+          icon: '',
+          type: 'primary'
+        }
+      ]
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 第一个参数是发起审批 API 函数
+- ⚠️ 第二个参数可以是单个 ID（字符串）或 ID 数组
+- ⚠️ 批量操作时需要先获取选中的数据并校验
+- ⚠️ 通常需要校验数据状态（只有未提交或驳回状态才能发起审批）
+
+### 6. 审批
+
+**使用场景**：审核通过或驳回数据
+
+**实现方式**：使用 `ApprovalModel` 组件
+
+**API 接口封装**：
+
+```javascript
+// api/module/function.js
+import request from '@/utils/request'
+
+/**
+ * 获取驳回节点列表
+ * @param {string} id - 数据ID
+ * @returns {Promise} 返回驳回节点列表
+ */
+export function getOverruledNode(id) {
+  return request({
+    url: `/module/function/getOverruledNode/${id}`,
+    method: 'get'
+  })
+}
+
+/**
+ * 同意审批
+ * @param {Object} params - 审批参数
+ * @returns {Promise} 返回审批结果
+ */
+export function agreeApprove(params) {
+  return request({
+    url: '/module/function/agreeApprove',
+    method: 'post',
+    data: params
+  })
+}
+
+/**
+ * 驳回审批
+ * @param {Object} params - 审批参数
+ * @returns {Promise} 返回审批结果
+ */
+export function rejectApprove(params) {
+  return request({
+    url: '/module/function/rejectApprove',
+    method: 'post',
+    data: params
+  })
+}
+```
+
+**tableMethods 实现**：
+
+```javascript
+import ApprovalModel from '@/components/ApprovalModel/index.vue'
+import { getOverruledNode, agreeApprove, rejectApprove } from '@/api/module/function'
+
+// 审核相关状态
+const approvalVisible = ref(false)
+const queryParams = ref({
+  id: '',  // 数据ID
+  key: 'id'  // ID 字段名
+})
+
+const tableMethods = {
+  /**
+   * approve: 审核数据
+   * @param {Object} row - 当前行数据对象
+   * @description 行内审核按钮点击时调用
+   */
+  approve: row => {
+    // 状态校验：只有审核中或驳回状态才能审核
+    if (row.status != 'UnderReview' && row.status != 'Overruled') {
+      return proxy.$modal.msgError('当前状态禁止审批')
+    }
+
+    queryParams.value.id = row.id
+    approvalVisible.value = true
+  }
+}
+
+const handleModalSuccess = () => {
+  reload()
+}
+```
+
+**模板中使用**：
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods" />
+
+  <!-- 审核弹窗 -->
+  <ApprovalModel
+    v-model="approvalVisible"
+    :get-overruled-node="getOverruledNode"
+    :agree-approve="agreeApprove"
+    :reject-approve="rejectApprove"
+    :query-params="queryParams"
+    @success="handleModalSuccess"
+  />
+</template>
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,
+      slots: { default: 'active' },
+      commands: [
+        {
+          id: 'module:function:approve',
+          btnFun: 'approve',
+          name: '审核',
+          icon: '',
+          type: 'primary'
+        }
+      ]
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 需要导入 `ApprovalModel` 组件
+- ⚠️ 需要定义 `approvalVisible` 和 `queryParams` 状态
+- ⚠️ 需要实现 `getOverruledNode`、`agreeApprove`、`rejectApprove` 三个 API 函数
+- ⚠️ 通常需要校验数据状态（只有审核中或驳回状态才能审核）
+- ⚠️ 审批状态判断：直接使用字典值 `'UnderReview'`、`'Overruled'` 进行判断
+
+### 7. 流程跟踪
+
+**使用场景**：查看审批流程记录
+
+**实现方式**：使用 `ApprovalRecord` 组件
+
+**tableMethods 实现**：
+
+```javascript
+import ApprovalRecord from '@/components/ApprovalRecord/index.vue'
+import { useStyleConfig } from '@/hooks/useStyleConfig'
+
+const { MODAL_CONFIG } = useStyleConfig()
+
+// 流程跟踪相关状态
+const approvalRecordVisible = ref(false)
+const procId = ref('')  // 审批流程ID
+
+const tableMethods = {
+  /**
+   * flowTracking: 流程跟踪
+   * @param {Object} row - 当前行数据对象
+   * @description 行内流程跟踪按钮点击时调用
+   */
+  flowTracking: row => {
+    procId.value = row.procId  // 从行数据中获取流程ID
+    approvalRecordVisible.value = true
+  }
+}
+```
+
+**模板中使用**：
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods" />
+
+  <!-- 流程跟踪弹窗 -->
+  <el-dialog
+    v-model="approvalRecordVisible"
+    title="审批记录"
+    :width="MODAL_CONFIG['large']"
+    destroy-on-close
+    append-to-body
+  >
+    <ApprovalRecord :proc-id="procId" />
+  </el-dialog>
+</template>
+```
+
+**listData.js 配置**：
+
+```javascript
+export const listData = {
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,
+      slots: { default: 'active' },
+      commands: [
+        {
+          id: 'module:function:flowTracking',
+          btnFun: 'flowTracking',
+          name: '流程跟踪',
+          icon: '',
+          type: 'primary'
+        }
+      ]
+    }
+  ]
+}
+```
+
+**注意事项**：
+
+- ⚠️ 需要导入 `ApprovalRecord` 组件
+- ⚠️ 需要从行数据中获取 `procId`（审批流程 ID）
+- ⚠️ 通常放在弹窗中展示
+- ⚠️ 弹窗宽度使用 `MODAL_CONFIG['large']`
+
+### 8. 完整功能组合示例
+
+**完整的页面实现**：
+
+```vue
+<template>
+  <div class="page-container">
+    <TableCommon
+      ref="tableRef"
+      :list-data="listData"
+      :methods="tableMethods"
+      :show-row-btn="showRowBtn"
+    >
+      <!-- 行内启用状态 -->
+      <template #featureColumn="{ row, column }">
+        <template v-if="column.field == 'enabledStatus'">
+          <SwitchStatus
+            v-model="row[column.field]"
+            :row="row"
+            :active-value="'1'"
+            :inactive-value="'0'"
+            :instance="proxy"
+            :api="updateEnabledStatus"
+            :status-field="'enabledStatus'"
+            permission="module:function:edit"
+            @success="reload"
+          />
+        </template>
+      </template>
+    </TableCommon>
+
+    <!-- 审核弹窗 -->
+    <ApprovalModel
+      v-model="approvalVisible"
+      :get-overruled-node="getOverruledNode"
+      :agree-approve="agreeApprove"
+      :reject-approve="rejectApprove"
+      :query-params="queryParams"
+      @success="handleModalSuccess"
+    />
+
+    <!-- 流程跟踪弹窗 -->
+    <el-dialog
+      v-model="approvalRecordVisible"
+      title="审批记录"
+      :width="MODAL_CONFIG['large']"
+      destroy-on-close
+      append-to-body
+    >
+      <ApprovalRecord :proc-id="procId" />
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, getCurrentInstance } from 'vue'
+import { useTableListFunc } from '@/hooks/useTableListFunc'
+import { exportExcel } from '@/hooks/useExport.js'
+import { importExcel } from '@/hooks/userImport.js'
+import { useStyleConfig } from '@/hooks/useStyleConfig'
+import ApprovalModel from '@/components/ApprovalModel/index.vue'
+import ApprovalRecord from '@/components/ApprovalRecord/index.vue'
+import SwitchStatus from '@/components/SwitchStatus/index.vue'
+import {
+  deleteApi,
+  batchDeleteApi,
+  exportApi,
+  importApi,
+  downloadTemplateApi,
+  startApproveApi,
+  batchStartApproveApi,
+  getOverruledNode,
+  agreeApprove,
+  rejectApprove,
+  updateEnabledStatus
+} from '@/api/module/function'
+import { listData } from './listData'
+import TableCommon from '@/components/TableCommon/index.vue'
+
+const { proxy } = getCurrentInstance()
+const { removeFunc, batchRemoveFunc, isConfirmSubmitFunc } = useTableListFunc()
+const { MODAL_CONFIG } = useStyleConfig()
+
+const tableRef = ref(null)
+const approvalVisible = ref(false)
+const approvalRecordVisible = ref(false)
+const queryParams = ref({ id: '', key: 'id' })
+const procId = ref('')
+
+const reload = () => {
+  tableRef.value?.reload()
+}
+
+const tableMethods = {
+  // 导出
+  export: () => {
+    exportExcel({
+      api: exportApi,
+      params: {
+        ...tableRef.value?.beforeSearchParams
+      },
+      fileName: `数据导出_${new Date().getTime()}`,
+      fileExt: 'xlsx'
+    })
+  },
+
+  // 导入
+  import: async () => {
+    await importExcel({
+      api: importApi,
+      successMsg: '导入成功',
+      errorMsg: '导入失败',
+      onSuccess: result => {
+        if (result.code === 0) {
+          reload()
+        }
+      }
+    })
+  },
+
+  // 下载模板
+  downloadTemplate: () => {
+    exportExcel({
+      api: downloadTemplateApi,
+      fileName: `导入模板_${new Date().getTime()}`,
+      fileExt: 'xlsx',
+      successMsg: '下载成功',
+      errorMsg: '下载失败'
+    })
+  },
+
+  // 行内删除
+  delete: row => {
+    removeFunc(deleteApi, row, reload, '确认删除当前数据吗', 'id')
+  },
+
+  // 批量删除
+  batchDelete: () => {
+    batchRemoveFunc(
+      batchDeleteApi,
+      reload,
+      '确认删除这些数据吗?',
+      tableRef,
+      'id'
+    )
+  },
+
+  // 审核
+  approve: row => {
+    if (row.status != 'UnderReview' && row.status != 'Overruled') {
+      return proxy.$modal.msgError('当前状态禁止审批')
+    }
+    queryParams.value.id = row.id
+    approvalVisible.value = true
+  },
+
+  // 发起审批（单条）
+  start: row => {
+    isConfirmSubmitFunc(
+      startApproveApi,
+      row.id,
+      reload,
+      null,
+      '确认发起审核吗？'
+    )
+  },
+
+  // 批量发起审批
+  batchStart: () => {
+    const records = tableRef.value?.selectRecords
+    if (!records || records.length === 0) {
+      proxy.$modal.msgError('请选择要发起审批的数据')
+      return
+    }
+    const ids = records.map(row => row.id)
+    isConfirmSubmitFunc(
+      batchStartApproveApi,
+      ids,
+      reload,
+      null,
+      '确认发起审核吗？'
+    )
+  },
+
+  // 流程跟踪
+  flowTracking: row => {
+    procId.value = row.procId
+    approvalRecordVisible.value = true
+  }
+}
+
+const handleModalSuccess = () => {
+  reload()
+}
+</script>
+```
+
+### 9. 注意事项总结
+
+⚠️ **重要提示**：
+
+1. **统一使用 Hooks**：所有常用方法都使用项目提供的 Hooks，不要自己实现
+2. **参数顺序**：严格按照 Hook 的参数顺序传递
+3. **错误处理**：Hooks 内部已处理错误，无需额外 try-catch
+4. **成功回调**：统一使用 `reload` 函数刷新表格
+5. **状态校验**：审核、发起审批等方法需要校验数据状态
+6. **组件导入**：审核和流程跟踪需要导入对应组件
+7. **ID 字段名**：如果 ID 字段不是 `id`，需要在方法中指定字段名
+8. **禁止使用 ElMessage.confirm**：不得单独使用 `ElMessage.confirm` 实现确认对话框，统一使用 `proxy.$modal.confirm`（详细规范请参考 [vue-development-patterns.mdc](./vue-development-patterns.mdc) 中的"消息提示规范"章节）
+9. **审批状态判断**：直接使用字典值进行判断（`'UnderReview'`、`'Overruled'` 等）
+
+## 按钮状态控制 (showRowBtn)
+
+`showRowBtn` 函数用于统一控制表格行内按钮的显示和禁用状态，根据行数据的状态动态设置按钮的可用性。
+
+### 函数签名
+
+```javascript
+/**
+ * showRowBtn: 按钮状态控制函数
+ * @param {Object} btn - 按钮配置对象
+ * @param {string} btn.id - 按钮权限标识（格式：'模块:功能:操作'）
+ * @param {string} btn.btnFun - 按钮对应的方法名
+ * @param {Object} row - 当前行数据对象
+ * @returns {Object} 按钮状态对象
+ * @returns {boolean} show - 是否显示按钮（默认 true）
+ * @returns {boolean} disabled - 是否禁用按钮（默认 false）
+ * @note ⚠️ rowKey 必须配置且是唯一，用于按钮状态缓存（参考 [开发规范 - rowKey 配置规范](#5-rowkey-配置规范)）
+ * @note ⚠️ 状态判断中枚举仅供参考！以实际值为准（参考 [开发规范 - 状态判断规范](#6-状态判断规范)）
+ */
+const showRowBtn = (btn, row) => {
+  const btnStatus = {
+    show: true,      // 是否显示按钮
+    disabled: false // 是否禁用按钮
+  }
+  
+  // 根据按钮 id 和行数据状态设置 disabled
+  // ...
+  
+  return btnStatus
+}
+```
+
+### 使用方式
+
+**模板中传递**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    :show-row-btn="showRowBtn"
+  />
+</template>
+
+<script setup>
+// 定义 showRowBtn 函数
+const showRowBtn = (btn, row) => {
+  const btnStatus = {
+    show: true,
+    disabled: false
+  }
+  
+  // 根据按钮 id 判断按钮类型，然后根据行数据状态设置 disabled
+  // ...
+  
+  return btnStatus
+}
+</script>
+```
+
+### 按钮类型判断
+
+**通过按钮 id 判断按钮类型**：
+
+```javascript
+const showRowBtn = (btn, row) => {
+  const btnStatus = {
+    show: true,
+    disabled: false
+  }
+  
+  // ⚠️ 先通过按钮 id 判断是什么按钮
+  if (btn.id === 'module:function:edit') {
+    // 编辑按钮的逻辑
+  } 
+  if (btn.id === 'module:function:delete') {
+    // 删除按钮的逻辑
+  } 
+  if (btn.id === 'module:function:approve') {
+    // 审核按钮的逻辑
+  }
+  
+  return btnStatus
+}
+```
+
+**注意事项**：
+
+- ⚠️ **必须先通过按钮 id 判断按钮类型**，然后再判断状态
+- ⚠️ 使用 `===` 严格相等判断，确保类型和值都匹配
+- ⚠️ 按钮 id 格式：`'模块:功能:操作'`，必须与 `listData.js` 中配置的 `id` 完全一致
+
+### 审批状态判断规范
+
+⚠️ **重要：状态判断规范请参考 [开发规范 - 状态判断规范](#6-状态判断规范) 和 [开发规范 - rowKey 配置规范](#5-rowkey-配置规范)。**
+
+**审批状态字典枚举值示例**（仅供参考，实际值以开发者提供为准）：
+
+```javascript
+// ⚠️ 状态判断中枚举仅供参考！以实际值为准
+const ApprovalStatus = {
+  NotSubmitted: 'NotSubmitted',  // 未提交（示例）
+  UnderReview: 'UnderReview',    // 审核中（示例）
+  Audited: 'Audited',            // 已审核（示例）
+  Overruled: 'Overruled'         // 驳回（示例）
+}
+```
+
+**状态判断示例**：
+
+```javascript
+// ⚠️ 状态判断中枚举仅供参考！以实际值为准
+// ⚠️ 必须先向开发者询问具体的字典 key 或枚举值
+const showRowBtn = (btn, row) => {
+  const btnStatus = {
+    show: true,
+    disabled: false
+  }
+  
+  // ⚠️ rowKey 必须配置且是唯一，用于按钮状态缓存
+  // 按钮状态判断会使用 row[listData.rowKey] 作为缓存键
+  
+  // ✅ 正确方式 - 直接使用字典值判断（枚举值以实际值为准）
+  if (btn.id === 'module:function:edit') {
+    // ⚠️ 'NotSubmitted' 和 'Overruled' 是示例值，实际值以开发者提供为准
+    if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+  }
+  
+  if (btn.id === 'module:function:approve') {
+    // ⚠️ 'UnderReview' 和 'Overruled' 是示例值，实际值以开发者提供为准
+    if (row.status != 'UnderReview' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+  }
+  
+  return btnStatus
+}
+```
+
+**禁止使用数字或其他编码值进行判断**：
+
+```javascript
+// ❌ 错误方式 - 使用数字判断
+if (row.status != 0) {
+  btnStatus.disabled = true
+}
+
+// ❌ 错误方式 - 使用其他编码值
+if (row.status != 'pending') {
+  btnStatus.disabled = true
+}
+
+// ✅ 正确方式 - 直接使用字典值判断（枚举值以实际值为准）
+// ⚠️ 'NotSubmitted' 是示例值，实际值以开发者提供为准
+if (row.status != 'NotSubmitted') {
+  btnStatus.disabled = true
+}
+```
+
+### 按钮状态控制示例
+
+⚠️ **注意：状态判断规范请参考 [开发规范 - 状态判断规范](#6-状态判断规范)。**
+
+**综合示例**（包含常见场景）：
+
+```javascript
+// listData.js: rowKey: 'id'  // ⚠️ 必须配置且是唯一
+
+const showRowBtn = (btn, row) => {
+  const btnStatus = {
+    show: true,
+    disabled: false
+  }
+  
+  // ⚠️ 先通过按钮 id 判断是什么按钮
+  // ⚠️ 状态判断中枚举仅供参考！以实际值为准
+  
+  // 编辑按钮：只有未提交或驳回状态才能编辑
+  if (btn.id === 'module:function:edit') {
+    // ⚠️ 'NotSubmitted' 和 'Overruled' 是示例值，实际值以开发者提供为准
+    if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+    // 可添加其他条件：业务状态、用印状态等
+    // if (row.businessStatus !== 'BUSINESS_NORMAL') {
+    //   btnStatus.disabled = true
+    // }
+  }
+  
+  // 删除按钮：只有未提交或驳回状态才能删除
+  if (btn.id === 'module:function:delete') {
+    if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+    // 可添加其他条件：已收款金额必须为0等
+    // if (Number(row.receivedAmount) !== 0) {
+    //   btnStatus.disabled = true
+    // }
+  }
+  
+  // 审核按钮：只有审核中或驳回状态才能审核
+  if (btn.id === 'module:function:approve') {
+    // ⚠️ 'UnderReview' 和 'Overruled' 是示例值，实际值以开发者提供为准
+    if (row.status != 'UnderReview' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+  }
+  
+  // 发起审批按钮：只有未提交或驳回状态才能发起审批
+  if (btn.id === 'module:function:start') {
+    if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+  }
+  
+  // 流程跟踪按钮：只有已审核或审核中状态才能查看
+  if (btn.id === 'module:function:flowTracking') {
+    // ⚠️ 'Audited' 和 'UnderReview' 是示例值，实际值以开发者提供为准
+    if (row.status != 'Audited' && row.status != 'UnderReview') {
+      btnStatus.disabled = true
+    }
+  }
+  
+  // 发布/下架按钮示例
+  // if (btn.id === 'module:function:publish') {
+  //   if (row.publishStatus == '1') {
+  //     btnStatus.disabled = true
+  //   }
+  // }
+  
+  return btnStatus
+}
+```
+
+### 注意事项
+
+⚠️ **重要提示**：
+
+1. **先判断按钮类型**：必须先通过 `btn.id` 判断是什么按钮，然后再判断状态
+2. **使用严格相等**：使用 `===` 或 `!=` 进行判断，确保类型和值都匹配
+3. **审批状态判断**：参考 [开发规范 - 状态判断规范](#6-状态判断规范)
+4. **rowKey 配置**：参考 [开发规范 - rowKey 配置规范](#5-rowkey-配置规范)
+5. **禁止使用数字**：不得使用数字或其他编码值进行判断
+6. **统一控制**：所有按钮的禁用操作都在 `showRowBtn` 中统一控制
+7. **返回对象**：必须返回包含 `show` 和 `disabled` 属性的对象
+8. **默认值**：默认 `show: true`、`disabled: false`，需要禁用时设置 `disabled: true`
+
+### 常见错误
+
+**错误示例**：
+
+```javascript
+// ❌ 错误：使用数字判断审批状态
+if (row.status != 0) {
+  btnStatus.disabled = true
+}
+
+// ❌ 错误：使用 btnFun 判断按钮类型（应该使用 btn.id）
+if (btn.btnFun === 'edit') {
+  // ...
+}
+
+// ❌ 错误：没有先判断按钮类型
+if (row.status != 'NotSubmitted') {
+  btnStatus.disabled = true  // 所有按钮都会被禁用
+}
+
+// ❌ 错误：返回格式不正确
+return { disabled: true }  // 缺少 show 属性
+```
+
+**正确示例**：
+
+```javascript
+// ✅ 正确：先判断按钮类型，再判断状态
+if (btn.id === 'module:function:edit') {
+  if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+    btnStatus.disabled = true
+  }
+}
+
+// ✅ 正确：使用字典值判断
+if (row.status != 'UnderReview') {
+  btnStatus.disabled = true
+}
+
+// ✅ 正确：返回完整对象
+return {
+  show: true,
+  disabled: false
+}
+```
+
+## formatter 和 slots 使用规范
+
+TableCommon 组件提供了两种方式来自定义表格列内容的渲染：`formatter` 函数和 `slots` 插槽。⚠️ **使用原则：优先使用 formatter，只有定制化功能才使用插槽。**
+
+### 使用原则
+
+**优先级顺序**：
+
+1. **优先使用 formatter**：简单的文本格式化、数值格式化等
+2. **定制化功能使用插槽**：字典标签显示、状态标签、复杂交互等
+
+**选择指南**：
+
+| 场景 | 推荐方式 | 不推荐方式 |
+|------|---------|-----------|
+| 简单的文本格式化 | `formatter` | `slots` 插槽 |
+| 数值格式化（金额、百分比等） | `formatter` | `slots` 插槽 |
+| 空值处理（显示 `-`） | `formatter` | `slots` 插槽 |
+| 字典值转义显示 | `slots` 插槽 + `dict-tag` | `formatter` |
+| 状态标签显示 | `slots` 插槽 + `el-tag` | `formatter` |
+| 复杂的单元格内容渲染 | `slots` 插槽 | `formatter` |
+
+### 1. formatter 函数使用
+
+**作用**：自定义单元格内容的格式化显示，适用于简单的文本转换、数值格式化等场景。
+
+**配置方式**：
+
+在 `listData.js` 的 `columns` 中配置：
+
+```javascript
+{
+  title: '金额(元)',
+  dataIndex: 'amount',
+  width: 150,
+  align: 'right',
+  formatter: ({ cellValue }) => {
+    // 格式化逻辑
+    return cellValue ? cellValue.toLocaleString('zh-CN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }) : '-'
+  }
+}
+```
+
+**函数签名**：
+
+```javascript
+/**
+ * formatter: 格式化函数
+ * @param {Object} params - 格式化参数
+ * @param {any} params.cellValue - 当前单元格的值
+ * @param {Object} params.row - 当前行数据对象
+ * @param {Object} params.column - 当前列配置对象
+ * @returns {string} 格式化后的显示内容
+ */
+formatter: ({ cellValue, row, column }) => {
+  // 格式化逻辑
+  return formattedValue
+}
+```
+
+**参数说明**：
+
+- `cellValue`: 当前单元格的值（对应 `dataIndex` 字段的值）
+- `row`: 当前行数据对象（包含该行的所有字段）
+- `column`: 当前列配置对象（包含 `title`、`dataIndex` 等配置）
+
+**使用场景**：
+
+#### 1.1 常用格式化示例
+
+```javascript
+import { formatAmount } from '@/utils'
+import dayjs from 'dayjs'
+
+// 空值处理
+{
+  title: '备注',
+  dataIndex: 'remark',
+  minWidth: 200,
+  formatter: ({ cellValue }) => {
+    return cellValue || '-'
+  }
+}
+
+// 金额格式化（⚠️ 参考 [开发规范 - 金额格式化规范](#1-金额格式化规范)）
+{
+  title: '金额(元)',
+  dataIndex: 'amount',
+  width: 150,
+  align: 'right',
+  formatter: ({ cellValue }) => {
+    return formatAmount(cellValue)
+  }
+}
+
+// 时间格式化（⚠️ 参考 [开发规范 - 时间格式化规范](#2-时间格式化规范)）
+{
+  title: '创建时间',
+  dataIndex: 'createTime',
+  width: 180,
+  formatter: ({ cellValue }) => {
+    if (!cellValue) return '-'
+    return dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss')
+  }
+}
+
+// 布尔值转换
+{
+  title: '是否启用',
+  dataIndex: 'enabled',
+  width: 100,
+  align: 'center',
+  formatter: ({ cellValue }) => {
+    return cellValue ? '是' : '否'
+  }
+}
+
+// 使用行数据计算
+{
+  title: '总金额',
+  dataIndex: 'totalAmount',
+  width: 150,
+  align: 'right',
+  formatter: ({ cellValue, row }) => {
+    const total = (row.amount || 0) * (row.quantity || 0)
+    return formatAmount(total)
+  }
+}
+```
+
+### 2. slots 插槽使用
+
+**作用**：自定义表格列内容的渲染，用于字典标签显示、状态标签、复杂交互等定制化场景。
+
+**配置方式**：
+
+```javascript
+// listData.js
+{
+  title: '状态',
+  dataIndex: 'status',
+  width: 100,
+  align: 'center',
+  slots: { default: 'featureColumn' }
+}
+```
+
+**模板中使用**：
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #featureColumn="{ row, column }">
+      <!-- 字典值转义 -->
+      <template v-if="column.field === 'status'">
+        <dict-tag :options="statusDict" :value="row.status" />
+      </template>
+
+      <template v-if="column.field === 'serviceType'">
+        <dict-tag :options="serviceTypeDict" :value="row.serviceType" />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+```
+
+**插槽参数说明**：
+
+- `row`: 当前行数据对象
+- `column`: 当前列配置对象
+  - `column.field`: 列的字段名（对应 `dataIndex`）
+  - `column.property`: 列的属性名（等同于 `field`）
+
+**使用场景示例**（综合示例）：
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods" :dict-store="dictStore">
+    <template #featureColumn="{ row, column }">
+      <!-- 字典值转义 -->
+      <template v-if="column.field === 'status'">
+        <dict-tag :options="statusDict" :value="row.status" />
+      </template>
+      
+      <!-- 状态标签 -->
+      <template v-if="column.field === 'approvalStatus'">
+        <el-tag :type="row.approvalStatus === 'Audited' ? 'success' : 'warning'">
+          {{ row.approvalStatus === 'Audited' ? '已审核' : '待审核' }}
+        </el-tag>
+      </template>
+      
+      <!-- 行内开关 -->
+      <template v-if="column.field === 'enabledStatus'">
+        <SwitchStatus
+          v-model="row[column.field]"
+          :row="row"
+          :active-value="'1'"
+          :inactive-value="'0'"
+          :instance="proxy"
+          :api="updateEnabledStatus"
+          :status-field="'enabledStatus'"
+          permission="module:function:edit"
+          @success="reload"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { reactive, getCurrentInstance } from 'vue'
+import SwitchStatus from '@/components/SwitchStatus/index.vue'
+import { updateEnabledStatus } from '@/api/module/function'
+
+const { proxy } = getCurrentInstance()
+const { statusDict } = proxy.useDict('service_status')
+
+const dictStore = reactive({
+  service_status: statusDict
+})
+</script>
+```
+
+**listData.js 配置**：
+
+```javascript
+{
+  title: '状态',
+  dataIndex: 'status',
+  width: 100,
+  align: 'center',
+  slots: { default: 'featureColumn' }
+}
+```
+
+### 3. formatter vs slots 对比
+
+**formatter 适用场景**：
+
+- ✅ 简单的文本格式化
+- ✅ 数值格式化（金额、百分比等）
+- ✅ 空值处理
+- ✅ 布尔值转换
+- ✅ 日期格式化
+- ✅ 简单的条件判断
+
+**slots 适用场景**：
+
+- ✅ 字典值转义显示（使用 `dict-tag`）
+- ✅ 状态标签显示（使用 `el-tag`）
+- ✅ 行内开关状态（使用 `SwitchStatus`）
+- ✅ 复杂的单元格内容渲染
+- ✅ 需要交互的单元格内容
+
+### 4. 注意事项
+
+⚠️ **重要提示**：
+
+1. **优先使用 formatter**：简单的格式化需求优先使用 `formatter`，代码更简洁
+2. **定制化功能使用插槽**：只有 `formatter` 无法满足需求时，才使用 `slots` 插槽
+3. **空值处理**：`formatter` 中需要处理空值，返回 `'-'` 或其他默认值
+4. **字典值转义**：字典值转义必须使用 `slots` 插槽 + `dict-tag` 组件
+5. **状态标签**：状态标签显示使用 `slots` 插槽 + `el-tag` 组件
+6. **性能考虑**：`formatter` 性能更好，`slots` 插槽需要额外的模板渲染
+7. **代码维护**：`formatter` 配置在 `listData.js` 中，更易维护
+
+### 6. 常见错误
+
+**错误示例**：
+
+```javascript
+// ❌ 错误：字典值转义使用 formatter
+{
+  title: '状态',
+  dataIndex: 'status',
+  formatter: ({ cellValue }) => {
+    // 不应该在 formatter 中手动处理字典值
+    const statusMap = { '1': '启用', '0': '禁用' }
+    return statusMap[cellValue]
+  }
+}
+
+// ❌ 错误：简单格式化使用插槽
+{
+  title: '金额(元)',
+  dataIndex: 'amount',
+  slots: { default: 'featureColumn' }  // 应该使用 formatter
+}
+```
+
+**正确示例**：
+
+```javascript
+// ✅ 正确：字典值转义使用插槽
+{
+  title: '状态',
+  dataIndex: 'status',
+  slots: { default: 'featureColumn' }
+}
+
+// ✅ 正确：简单格式化使用 formatter
+{
+  title: '金额(元)',
+  dataIndex: 'amount',
+  formatter: ({ cellValue }) => {
+    return cellValue ? cellValue.toLocaleString('zh-CN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }) : '-'
+  }
+}
+```
+
+## 禁止行为规范
+
+⚠️ **重要：以下行为在 TableCommon 组件使用中严格禁止！**
+
+### 1. 操作列配置禁止项
+
+#### 1.1 禁止手动定义操作列插槽
+
+**❌ 错误方式**：
+
+```vue
+<!-- ❌ 禁止：不要额外定义操作列插槽 -->
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #active="{ row }">
+      <el-button @click="edit(row)">编辑</el-button>
+      <el-button @click="delete(row)">删除</el-button>
+    </template>
+  </TableCommon>
+</template>
+```
+
+**✅ 正确方式**：
+
+```javascript
+// ✅ 正确：在 listData.js 中配置操作列
+export const listData = {
+  columns: [
+    {
+      title: '操作',
+      key: 'active',
+      width: 165,  // ⚠️ 操作列固定宽度值为 165px
+      fixed: 'right',
+      align: 'left',
+      slots: { default: 'active' },
+      commands: [
+        {
+          id: 'module:function:edit',
+          btnFun: 'edit',
+          name: '编辑',
+          icon: '',
+          type: 'primary'
+        },
+        {
+          id: 'module:function:delete',
+          btnFun: 'delete',
+          name: '删除',
+          icon: '',
+          type: 'danger'
+        }
+      ]
+    }
+  ]
+}
+```
+
+**禁止原因**：
+
+- 操作列必须通过 `listData.js` 中的 `commands` 配置
+- 组件内部会自动处理操作列的渲染
+- 手动定义插槽会破坏组件的统一管理
+
+#### 1.2 禁止修改操作列宽度
+
+**❌ 错误方式**：
+
+```javascript
+{
+  title: '操作',
+  key: 'active',
+  width: 200,  // ❌ 禁止：操作列宽度必须是 165px
+  fixed: 'right',
+  slots: { default: 'active' }
+}
+```
+
+**✅ 正确方式**：
+
+```javascript
+{
+  title: '操作',
+  key: 'active',
+  width: 165,  // ✅ 正确：操作列固定宽度值为 165px
+  fixed: 'right',
+  align: 'left',
+  slots: { default: 'active' }
+}
+```
+
+**禁止原因**：
+
+- 操作列宽度统一为 165px，保持视觉一致性
+- 随意修改会导致不同页面操作列宽度不统一
+
+#### 1.3 禁止手动定义序号列
+
+**❌ 错误方式**：
+
+```javascript
+export const listData = {
+  columns: [
+    {
+      title: '序号',
+      dataIndex: 'index',
+      width: 80,
+      align: 'center'
+    },
+    // ... 其他列
+  ]
+}
+```
+
+**✅ 正确方式**：
+
+```javascript
+export const listData = {
+  columns: [
+    // 序号列由组件自动生成，无需手动配置
+    // ... 其他列
+  ]
+}
+```
+
+**禁止原因**：
+
+- 序号列由组件内部自动生成和管理
+- 手动定义会导致序号显示异常
+
+### 2. 表格配置禁止项
+
+#### 2.1 禁止 width 和 minWidth 同时存在
+
+**❌ 错误方式**：
+
+```javascript
+{
+  title: '列名',
+  dataIndex: 'field',
+  width: 200,      // ❌ 不能同时存在
+  minWidth: 150    // ❌ 不能同时存在
+}
+```
+
+**✅ 正确方式**：
+
+```javascript
+// 方式1：使用固定宽度
+{
+  title: '列名1',
+  dataIndex: 'field1',
+  width: 200,      // 固定宽度
+  resizable: true,
+  showOverflow: true
+}
+
+// 方式2：使用最小宽度（至少有一列必须配置 minWidth）
+{
+  title: '列名2',
+  dataIndex: 'field2',
+  minWidth: 150,   // 最小宽度，自适应
+  resizable: true,
+  showOverflow: true
+}
+```
+
+**禁止原因**：
+
+- `width` 和 `minWidth` 是互斥的配置项
+- 同时配置会导致列宽计算错误
+- 至少有一列必须配置 `minWidth` 用于自适应布局
+
+#### 2.2 禁止所有列都使用固定宽度
+
+**❌ 错误方式**：
+
+```javascript
+export const listData = {
+  columns: [
+    { title: '列1', dataIndex: 'field1', width: 200 },
+    { title: '列2', dataIndex: 'field2', width: 150 },
+    { title: '列3', dataIndex: 'field3', width: 180 }
+    // ❌ 所有列都是固定宽度，没有 minWidth
+  ]
+}
+```
+
+**✅ 正确方式**：
+
+```javascript
+export const listData = {
+  columns: [
+    { title: '列1', dataIndex: 'field1', width: 200 },
+    { title: '列2', dataIndex: 'field2', minWidth: 150 },  // ✅ 至少有一列使用 minWidth
+    { title: '列3', dataIndex: 'field3', width: 180 }
+  ]
+}
+```
+
+**禁止原因**：
+
+- 至少有一列必须配置 `minWidth` 用于自适应布局
+- 所有列都使用固定宽度会导致表格无法自适应容器宽度
+
+### 3. 按钮配置禁止项
+
+#### 3.1 禁止在 views 目录下设置按钮 size 属性
+
+**❌ 错误方式**：
+
+```vue
+<!-- ❌ 禁止：在 views 目录下设置按钮 size -->
+<el-button type="primary" size="default">新增</el-button>
+<el-button type="danger" size="small">删除</el-button>
+```
+
+**✅ 正确方式**：
+
+```vue
+<!-- ✅ 正确：不设置 size，使用全局默认尺寸 -->
+<el-button type="primary">新增</el-button>
+<el-button type="danger">删除</el-button>
+```
+
+**禁止原因**：
+
+- 全局已统一配置按钮尺寸
+- 保持整个系统的视觉一致性
+- 避免不同页面尺寸不统一
+
+#### 3.2 禁止表格内按钮不设置 link 属性
+
+**❌ 错误方式**：
+
+```vue
+<!-- ❌ 禁止：表格内按钮没有 link 属性 -->
+<el-table-column label="操作">
+  <template #default="{ row }">
+    <el-button type="info" @click="handleEdit(row)">编辑</el-button>
+  </template>
+</el-table-column>
+```
+
+**✅ 正确方式**：
+
+```vue
+<!-- ✅ 正确：表格内按钮必须设置 link 属性 -->
+<el-table-column label="操作">
+  <template #default="{ row }">
+    <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+  </template>
+</el-table-column>
+```
+
+**禁止原因**：
+
+- 表格内按钮必须设置 `link` 属性，呈现为文本链接样式
+- 节省表格空间，提升视觉层次感
+
+#### 3.3 禁止手动设置按钮间距
+
+**❌ 错误方式**：
+
+```vue
+<!-- ❌ 禁止：手动设置按钮间距 -->
+<div class="button-group">
+  <el-button type="primary" style="margin-right: 10px">新增</el-button>
+  <el-button type="danger" style="margin-right: 10px">删除</el-button>
+  <el-button>导出</el-button>
+</div>
+```
+
+**✅ 正确方式**：
+
+```vue
+<!-- ✅ 正确：不设置间距，使用全局样式 -->
+<div class="button-group">
+  <el-button type="primary">新增</el-button>
+  <el-button type="danger">删除</el-button>
+  <el-button>导出</el-button>
+</div>
+```
+
+**禁止原因**：
+
+- 全局 CSS 已统一配置按钮间距
+- 手动设置会破坏全局一致性
+
+### 4. 字段绑定禁止项
+
+#### 4.1 禁止在单元格中拼接单位
+
+**❌ 错误方式**：
+
+```javascript
+// ❌ 禁止：在单元格中拼接单位
+formatter: ({ cellValue }) => {
+  return cellValue ? `${cellValue}元` : '-'  // ❌ 禁止拼接单位
+}
+```
+
+**✅ 正确方式**：
+
+```javascript
+// ✅ 正确：单位统一放在表头
+{
+  title: '金额(元)',  // ✅ 单位在表头
+  dataIndex: 'amount',
+  formatter: ({ cellValue }) => {
+    return cellValue ? cellValue.toLocaleString('zh-CN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }) : '-'
+    // 显示：100,000.00（不包含单位）
+  }
+}
+```
+
+**禁止原因**：
+
+- 单位统一放在表头，保持表格整洁
+- 单元格中拼接单位会导致数据格式不统一
+
+#### 4.2 禁止随意添加或删除字段
+
+**❌ 错误方式**：
+
+```javascript
+// ❌ 禁止：按照接口返回的字段对页面进行补充添加删除字段
+export const listData = {
+  columns: [
+    { title: '字段1', dataIndex: 'field1' },
+    { title: '新增字段', dataIndex: 'newField' },  // ❌ 禁止添加新字段
+    // 删除了原有的字段2  // ❌ 禁止删除现有字段
+  ]
+}
+```
+
+**✅ 正确方式**：
+
+```javascript
+// ✅ 正确：严格按照现有文件定义进行修改
+export const listData = {
+  columns: [
+    { title: '字段1', dataIndex: 'field1' },  // 只修改 dataIndex，不添加删除
+    { title: '字段2', dataIndex: 'field2' }
+  ]
+}
+```
+
+**禁止原因**：
+
+- 必须严格按照文件中已定义的字段进行修改
+- 不得按照接口返回的字段对页面进行补充添加删除字段
+- 保持现有表单结构和字段布局不变
+
+### 5. 查询条件禁止项
+
+#### 5.1 Element Plus 组件配置规范（查询条件专用）
+
+> **⚠️ 详细规范**：Element Plus 组件的完整配置规范（clearable、filterable 等）请参考 [vue-development-patterns.mdc](./vue-development-patterns.mdc) 中的"Element Plus 组件配置规范"章节。
+
+**查询条件中的配置要求**：
+
+1. **所有支持 clearable 的组件必须配置**：
+   ```javascript
+   {
+     key: 'projectName',
+     label: '项目名称',
+     controls: 'ElInput',
+     props: {
+       placeholder: '请输入项目名称',
+       clearable: true  // ✅ 必须配置
+     }
+   }
+   ```
+
+2. **el-select 组件必须配置 filterable**：
+   ```javascript
+   {
+     key: 'serviceType',
+     label: '服务类型',
+     controls: 'ElSelect',
+     props: {
+       placeholder: '请选择服务类型',
+       clearable: true,
+       filterable: true  // ✅ 必须配置
+     }
+   }
+   ```
+
+**禁止行为**：
+- ❌ 禁止查询条件不使用 clearable：所有支持 `clearable` 的组件必须配置
+- ❌ 禁止 el-select 不配置 filterable：`el-select` 必须配置 `filterable`
+
+### 6. 禁止行为总结
+
+⚠️ **所有禁止项汇总**：
+
+1. ❌ **禁止手动定义操作列插槽**：操作列必须通过 `listData.js` 中的 `commands` 配置
+2. ❌ **禁止修改操作列宽度**：操作列宽度固定为 165px
+3. ❌ **禁止手动定义序号列**：序号列由组件自动生成
+4. ❌ **禁止 width 和 minWidth 同时存在**：两者是互斥的配置项
+5. ❌ **禁止所有列都使用固定宽度**：至少有一列必须配置 `minWidth`
+6. ❌ **禁止在 views 目录下设置按钮 size 属性**：使用全局默认尺寸
+7. ❌ **禁止表格内按钮不设置 link 属性**：表格内按钮必须设置 `link`
+8. ❌ **禁止手动设置按钮间距**：使用全局样式
+9. ❌ **禁止在单元格中拼接单位**：单位统一放在表头
+10. ❌ **禁止随意添加或删除字段**：严格按照现有文件定义进行修改
+11. ❌ **禁止查询条件不使用 clearable**：所有支持 `clearable` 的组件必须配置
+12. ❌ **禁止 el-select 不配置 filterable**：`el-select` 必须配置 `filterable`
+
+## 组件回调函数说明
+
+TableCommon 组件通过 `emit` 暴露了多个事件回调函数，用于在特定时机通知父组件执行相关操作。
+
+### 事件列表
+
+组件定义了以下事件：
+
+```javascript
+const emit = defineEmits(['search', 'reset', 'onCellClick'])
+```
+
+### 1. search 事件
+
+**触发时机**：数据加载成功后触发
+
+**使用场景**：
+- 加载汇总数据（如统计信息、KPI 数据等）
+- 根据查询参数执行额外操作
+- 监听数据加载完成
+
+**事件参数**：
+
+```javascript
+/**
+ * search 事件参数
+ * @param {Object} query - 当前查询参数对象
+ * @description 包含分页、筛选条件等所有查询参数
+ */
+emit('search', query)
+```
+
+**使用示例**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    @search="handleSearch"
+  />
+</template>
+
+<script setup>
+// 搜索事件处理
+const handleSearch = (query) => {
+  console.log('搜索参数:', query)
+  // 根据查询参数加载汇总数据
+  loadSummary(query)
+}
+
+// 加载汇总数据
+const loadSummary = async (query) => {
+  try {
+    const res = await fetchSummaryData(query)
+    if (res.code === 0) {
+      summaryData.value = res.data
+    }
+  } catch (error) {
+    console.error('加载汇总数据失败:', error)
+  }
+}
+</script>
+```
+
+**实际应用场景**：
+
+```vue
+<template>
+  <div class="page-container">
+    <!-- 汇总数据展示 -->
+    <div class="summary-cards">
+      <div class="card">
+        <div class="label">总数量</div>
+        <div class="value">{{ summaryData.totalCount }}</div>
+      </div>
+      <div class="card">
+        <div class="label">总金额</div>
+        <div class="value">{{ summaryData.totalAmount }}</div>
+      </div>
+    </div>
+
+    <!-- 表格组件 -->
+    <TableCommon
+      ref="tableRef"
+      :list-data="listData"
+      :methods="tableMethods"
+      @search="loadSummary"
+    />
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { fetchActivityAnalysisData } from '@/api/organizing/activityAnalysis'
+
+const summaryData = ref({
+  totalCount: 0,
+  totalAmount: 0
+})
+
+// 加载汇总数据（在搜索时触发）
+const loadSummary = async () => {
+  const query = tableRef.value?.realtimeQueryParams
+  try {
+    const res = await fetchActivityAnalysisData(query)
+    if (res.code === 0) {
+      Object.assign(summaryData.value, {
+        totalCount: res.data.totalCount ?? 0,
+        totalAmount: res.data.totalAmount ?? 0
+      })
+    }
+  } catch (error) {
+    console.error('加载汇总数据失败:', error)
+  }
+}
+</script>
+```
+
+**注意事项**：
+
+- ⚠️ `search` 事件在数据加载成功后触发
+- ⚠️ 事件参数 `query` 包含完整的查询参数（分页、筛选条件等）
+- ⚠️ 可以通过 `tableRef.value?.realtimeQueryParams` 获取实时查询参数
+
+### 2. reset 事件
+
+**触发时机**：重置表单时触发
+
+**使用场景**：
+- 重置自定义查询组件（如 `NumberRange` 数字范围输入组件）
+- 清理自定义状态
+- 执行重置后的额外操作
+
+**事件参数**：
+
+```javascript
+/**
+ * reset 事件
+ * @description 无参数，仅通知父组件执行重置操作
+ */
+emit('reset')
+```
+
+**使用示例**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    @reset="handleReset"
+  >
+    <template #formSlot="{ data, field }">
+      <!-- 自定义查询组件 -->
+      <template v-if="field === 'amountRange'">
+        <NumberRange
+          ref="amountRangeRef"
+          v-model:start="data.amountStart"
+          v-model:end="data.amountEnd"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import NumberRange from '@/components/NumberRange/index.vue'
+
+const amountRangeRef = ref(null)
+
+// 重置事件处理
+const handleReset = () => {
+  // 重置自定义组件
+  amountRangeRef.value?.reset()
+}
+</script>
+```
+
+**实际应用场景**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    @reset="handleReset"
+  >
+    <template #formSlot="{ data, field }">
+      <!-- 面积范围 -->
+      <template v-if="field === 'areaRange'">
+        <NumberRange
+          ref="areaRangeRef"
+          v-model:start="data.areaStart"
+          v-model:end="data.areaEnd"
+        />
+      </template>
+      
+      <!-- 价格范围 -->
+      <template v-if="field === 'priceRange'">
+        <NumberRange
+          ref="priceRangeRef"
+          v-model:start="data.priceStart"
+          v-model:end="data.priceEnd"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import NumberRange from '@/components/NumberRange/index.vue'
+
+const areaRangeRef = ref(null)
+const priceRangeRef = ref(null)
+
+// 重置事件处理
+const handleReset = () => {
+  // 重置所有自定义组件
+  areaRangeRef.value?.reset()
+  priceRangeRef.value?.reset()
+}
+</script>
+```
+
+**注意事项**：
+
+- ⚠️ `reset` 事件在重置按钮点击时触发
+- ⚠️ 组件内部已处理表单重置，此事件主要用于重置自定义组件
+- ⚠️ 如果使用了自定义查询组件（如 `NumberRange`），需要在 `reset` 事件中手动重置
+
+### 3. onCellClick 事件
+
+**触发时机**：点击表格单元格时触发（操作列除外）
+
+**使用场景**：
+- 单元格点击交互
+- 行选择逻辑（组件内部已处理，此事件用于额外操作）
+- 自定义单元格点击行为
+
+**事件参数**：
+
+```javascript
+/**
+ * onCellClick 事件参数
+ * @param {Object} row - 当前行数据对象
+ * @description 点击单元格所在行的完整数据
+ */
+emit('onCellClick', row)
+```
+
+**使用示例**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    @onCellClick="handleCellClick"
+  />
+</template>
+
+<script setup>
+// 单元格点击事件处理
+const handleCellClick = (row) => {
+  console.log('点击了行数据:', row)
+  // 执行自定义操作，如跳转详情页
+  router.push({
+    name: 'Detail',
+    params: { id: row.id }
+  })
+}
+</script>
+```
+
+**注意事项**：
+
+- ⚠️ `onCellClick` 事件在点击单元格时触发（操作列除外）
+- ⚠️ 组件内部已处理行选择逻辑（多选/单选），此事件用于额外操作
+- ⚠️ 如果 `hideSelection: true`，行选择功能被禁用，但事件仍会触发
+
+### 4. 回调函数使用示例
+
+**综合示例**：
+
+```vue
+<template>
+  <TableCommon
+    ref="tableRef"
+    :list-data="listData"
+    :methods="tableMethods"
+    @search="handleSearch"
+    @reset="handleReset"
+    @onCellClick="handleCellClick"
+  >
+    <template #formSlot="{ data, field }">
+      <template v-if="field === 'amountRange'">
+        <NumberRange
+          ref="amountRangeRef"
+          v-model:start="data.amountStart"
+          v-model:end="data.amountEnd"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import NumberRange from '@/components/NumberRange/index.vue'
+import { fetchSummaryData } from '@/api/module/function'
+
+const amountRangeRef = ref(null)
+const summaryData = ref(null)
+
+// 搜索事件：加载汇总数据
+const handleSearch = async (query) => {
+  const res = await fetchSummaryData(query)
+  if (res.code === 0) {
+    summaryData.value = res.data
+  }
+}
+
+// 重置事件：重置自定义组件
+const handleReset = () => {
+  amountRangeRef.value?.reset()
+  summaryData.value = null
+}
+
+// 单元格点击事件：自定义操作
+const handleCellClick = (row) => {
+  console.log('点击了行数据:', row)
+}
+</script>
+```
+
+### 5. 事件触发时机总结
+
+| 事件 | 触发时机 | 参数 | 使用场景 |
+|------|---------|------|---------|
+| `search` | 数据加载成功后 | `query`（查询参数对象） | 加载汇总数据、监听数据加载完成 |
+| `reset` | 重置按钮点击时 | 无 | 重置自定义查询组件、清理自定义状态 |
+| `onCellClick` | 点击表格单元格时（操作列除外） | `row`（行数据对象） | 单元格点击交互、自定义点击行为 |
+
+### 6. 注意事项
+
+⚠️ **重要提示**：
+
+1. **search 事件**：在数据加载成功后触发，可用于加载汇总数据
+2. **reset 事件**：组件内部已处理表单重置，主要用于重置自定义组件
+3. **onCellClick 事件**：组件内部已处理行选择逻辑，此事件用于额外操作
+4. **事件参数**：`search` 传递查询参数，`onCellClick` 传递行数据，`reset` 无参数
+5. **可选使用**：这些事件都是可选的，根据实际需求使用
+
+## 样式规范
+
+### 页面容器样式
+
+```scss
+.page-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+}
+
+// 表格容器样式
+.table-container {
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+```
+
+## 错误处理规范
+
+### API 错误处理
+
+```javascript
+// 在 getCustomTableData 中统一处理
+try {
+  const response = await getCustomTableData(query, api.value)
+  // 处理成功响应
+} catch (error) {
+  console.error('数据加载失败:', error)
+  // 显示错误提示
+  proxy.$modal.msgError('数据加载失败，请重试')
+}
+```
+
+## 性能优化规范
+
+### 数据缓存
+
+```javascript
+// 使用 cacheKey 进行表格状态缓存
+cacheKey: 'userList_' + Date.now()
+
+// 清理按钮缓存
+const clearCache = () => {
+  tableRef.value.clearButtonCache()
+}
+```
+
+### 分页优化
+
+```javascript
+// 合理设置分页大小
+pagerConfig: {
+  pageSizes: [10, 20, 50, 100],
+  pageSize: 20
+}
+```
+
+## 维护规范
+
+### 版本管理
+
+- 组件版本号使用语义化版本控制
+- 重大变更需要提供迁移指南
+- 保持向后兼容性
+
+### 文档更新
+
+- 每次功能更新都需要更新使用文档
+- 提供完整的示例代码
+- 记录已知问题和解决方案
+
+### 字典维护
+
+- 字典类型变更需要同步更新前端配置
+- 新增字典类型需要更新规则文档
+- 字典数据异常需要及时排查后端接口
+
+## 功能按钮配置项配置说明
+
+### 图标配置说明
+
+1. 表格上方按钮配置
+
+- 只有新增按钮配置 type=‘primary’
+- icon 配置: 新增 Plus 删除/作废 Delete 打印 Printer 锁定 Lock 解锁 Unlock 导入 Upload 导出/下载 Download 其他可根据情况在 Element-Plus 官网 icon 库查找使用
+- **只有新增按钮 type 值是 primary，其他按钮配置为空**
+
+2. 表格行内按钮配置
+
+- 行内按钮 **icon 固定设置为空**
+- 行内按钮 **type 属性值固定 primary,只有行内删除按钮设置为 danger**

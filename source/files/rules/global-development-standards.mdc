@@ -1,0 +1,274 @@
+---
+alwaysApply: true
+description: 全局开发规范 - 智能规则动态添加与分发系统
+keywords: ["全局规范", "开发规范", "代码规范", "规则添加", "规则分发"]
+tags: ["核心规则", "基础规范", "规则管理"]
+size: small
+---
+
+# 全局开发规范 - 智能规则动态添加与分发系统
+
+## 📝 动态规则添加机制
+
+当用户输入 **"添加规则：\***"** 格式的指令时，AI 助手将：
+
+1. **智能分析规则类型**：根据规则内容自动判断规则所属类别
+2. **自动分发到对应文件**：将规则写入到对应的规则文件中
+3. **记录添加历史**：在本文件中记录规则添加历史（可选）
+
+**使用示例：**
+
+- 用户输入：`添加规则：所有API调用必须使用try-catch包装`
+- AI 助手将：
+  1. 分析规则类型：API 相关 → `api-integration-workflow.mdc`
+  2. 自动添加到对应文件
+  3. 记录添加历史
+
+---
+
+## 🎯 规则分类与目标文件映射
+
+### 规则分类体系
+
+| 规则类别 | 目标文件 | 关键词识别 | 适用场景 |
+|---------|---------|-----------|---------|
+| **Vue 开发规范** | `vue-development-patterns.mdc` | vue、组件、组合式、响应式、ref、reactive、computed、watch、defineModel、props、emit | Vue 组件开发、响应式数据、组件通信 |
+| **表格组件规范** | `TableCommon-项目规则.mdc` | TableCommon、listData、表格、列配置、查询条件、showRowBtn、按钮状态、审批状态 | 列表页开发、表格配置 |
+| **自定义组件规范** | `component-usage-guide.mdc` | SwitchStatus、FileUpload、ProjectInstallment、Card、NumberRange、DictTag、自定义组件 | 自定义组件使用 |
+| **接口联调规范** | `api-integration-workflow.mdc` | 接口、API、字段对接、字段映射、Apifox、接口文档 | 接口对接、字段修改 |
+| **接口文档规范** | `api-fox-patterns.mdc` | Apifox、接口文档、查询接口、获取接口 | 接口文档查询 |
+| **组件拆分规范** | `vue-component-split-patterns.mdc` | 组件拆分、局部组件、小组件、组件重构 | 组件拆分场景 |
+| **全局通用规范** | `global-development-standards.mdc` | 文件命名、代码风格、通用约定、项目规范 | 不明确分类的通用规则 |
+
+---
+
+## 🤖 智能规则分类算法
+
+### 分类判断流程
+
+```
+1. 提取规则关键词
+   ↓
+2. 匹配规则类别（按优先级）
+   ↓
+3. 确定目标文件
+   ↓
+4. 验证规则格式
+   ↓
+5. 写入目标文件
+   ↓
+6. 记录添加历史
+```
+
+### 关键词匹配规则（优先级从高到低）
+
+#### 1. 表格组件规范（TableCommon）
+**关键词**：`TableCommon`、`listData`、`表格`、`列配置`、`查询条件`、`showRowBtn`、`按钮状态`、`审批状态`、`dataIndex`、`queryCondition`、`columns`、`formatter`、`插槽`、`featureColumn`
+
+**判断逻辑**：
+- 包含 "TableCommon"、"listData"、"表格配置" 等关键词
+- 涉及 "列"、"查询条件"、"按钮状态" 等概念
+- 提到 "showRowBtn"、"审批状态" 等函数
+
+**目标文件**：`.cursor/rules/TableCommon-项目规则.mdc`
+
+#### 2. 自定义组件规范（component-usage-guide）
+**关键词**：`SwitchStatus`、`FileUpload`、`ProjectInstallment`、`Card`、`NumberRange`、`DictTag`、`自定义组件`、`组件使用`
+
+**判断逻辑**：
+- 包含特定组件名称（SwitchStatus、FileUpload 等）
+- 提到 "自定义组件"、"组件使用" 等概念
+
+**目标文件**：`.cursor/rules/component-usage-guide.mdc`
+
+#### 3. 接口联调规范（api-integration-workflow）
+**关键词**：`接口联调`、`字段对接`、`字段映射`、`字段修改`、`接口对接`、`Apifox对接`、`接口文档`、`字段绑定`
+
+**判断逻辑**：
+- 包含 "接口联调"、"字段对接"、"字段映射" 等关键词
+- 涉及接口字段修改、对接流程
+
+**目标文件**：`.cursor/rules/api-integration-workflow.mdc`
+
+#### 4. 接口文档规范（api-fox-patterns）
+**关键词**：`Apifox`、`接口文档`、`查询接口`、`获取接口`、`接口查询`
+
+**判断逻辑**：
+- 包含 "Apifox"、"接口文档"、"查询接口" 等关键词
+- 涉及接口文档查询流程
+
+**目标文件**：`.cursor/rules/api-fox-patterns.mdc`
+
+#### 5. 组件拆分规范（vue-component-split-patterns）
+**关键词**：`组件拆分`、`局部组件`、`小组件`、`组件重构`
+
+**判断逻辑**：
+- 包含 "组件拆分"、"局部组件"、"小组件" 等关键词
+
+**目标文件**：`.cursor/rules/vue-component-split-patterns.mdc`
+
+#### 6. Vue 开发规范（vue-development-patterns）
+**关键词**：`vue`、`组件`、`组合式`、`响应式`、`ref`、`reactive`、`computed`、`watch`、`defineModel`、`props`、`emit`、`pinia`、`路由`、`表单`、`事件处理`
+
+**判断逻辑**：
+- 包含 Vue 相关技术关键词
+- 涉及组件开发、响应式数据、状态管理等概念
+- 不匹配其他更具体的类别
+
+**目标文件**：`.cursor/rules/vue-development-patterns.mdc`
+
+#### 7. 全局通用规范（global-development-standards.mdc）
+**关键词**：`文件命名`、`代码风格`、`通用约定`、`项目规范`、`全局规范`
+
+**判断逻辑**：
+- 不匹配任何具体类别
+- 属于通用性规则
+- 涉及项目级别的约定
+
+**目标文件**：`.cursor/rules/global-development-standards.mdc`（本文件）
+
+---
+
+## 📋 规则添加执行流程
+
+### AI 助手执行步骤
+
+当用户输入 `添加规则：***` 时，AI 助手必须执行以下完整流程：
+
+#### 步骤 1：规则内容提取
+- 提取 `添加规则：` 后面的完整规则内容
+- 保留规则的完整格式和结构
+
+#### 步骤 2：规则类型分析
+- 分析规则内容，提取关键词
+- 按照优先级匹配规则类别
+- 确定目标文件路径
+
+#### 步骤 3：规则格式验证
+- 检查规则格式是否完整
+- 确保规则描述清晰
+- 验证是否符合目标文件的规范要求
+
+#### 步骤 4：写入目标文件
+- 在目标文件的合适位置添加规则
+- 保持文件原有结构和格式
+- 添加适当的章节标题和说明
+
+#### 步骤 5：记录添加历史（可选）
+- 在本文件的"规则添加历史"部分记录
+- 包含：添加时间、规则内容、目标文件、规则类型
+
+---
+
+## 📝 规则添加示例
+
+### 示例 1：Vue 开发规范
+
+**用户输入**：
+```
+添加规则：所有组件必须使用 defineModel 接收父组件传递的数据，禁止使用 props
+```
+
+**AI 执行**：
+1. **分析**：包含 "defineModel"、"props"、"组件" → Vue 开发规范
+2. **目标文件**：`vue-development-patterns.mdc`
+3. **添加位置**：组件通信章节 → 父子组件传值规范部分
+4. **记录**：在历史中记录
+
+### 示例 2：表格组件规范
+
+**用户输入**：
+```
+添加规则：showRowBtn 函数中判断审批状态时，必须使用字典值，禁止使用数字编码
+```
+
+**AI 执行**：
+1. **分析**：包含 "showRowBtn"、"审批状态"、"表格" → 表格组件规范
+2. **目标文件**：`TableCommon-项目规则.mdc`
+3. **添加位置**：按钮状态控制章节 → 审批状态判断规范部分
+4. **记录**：在历史中记录
+
+### 示例 3：接口联调规范
+
+**用户输入**：
+```
+添加规则：接口字段映射必须在调用接口前通过特定函数处理，禁止在接口封装函数中进行映射
+```
+
+**AI 执行**：
+1. **分析**：包含 "接口"、"字段映射"、"接口封装" → 接口联调规范
+2. **目标文件**：`api-integration-workflow.mdc`
+3. **添加位置**：特殊情况处理流程部分
+4. **记录**：在历史中记录
+
+### 示例 4：全局通用规范
+
+**用户输入**：
+```
+添加规则：所有新建文件必须使用驼峰式命名（camelCase），禁止使用 PascalCase 或 kebab-case
+```
+
+**AI 执行**：
+1. **分析**：包含 "文件命名"、"通用约定" → 全局通用规范
+2. **目标文件**：`global-development-standards.mdc`（本文件）
+3. **添加位置**：动态新增规则记录部分
+4. **记录**：在历史中记录
+
+---
+
+## 🆕 动态新增规则记录
+
+以下规则是通过 `添加规则：***` 指令动态添加的规则记录：
+
+### 文件命名规范
+- 创建文件时，文件名命名规则：驼峰式（camelCase）。
+  - 示例：userList.vue、baseInfo.vue、teamMember.vue
+  - 禁止：UserList.vue、user_list.vue、user-list.vue
+
+### 审核状态判断规范
+- 在 `showRowBtn` 中判断审批状态时，直接使用字典值进行判断。
+  - 审批状态字典枚举值：
+    - `NotSubmitted`: 未提交
+    - `UnderReview`: 审核中
+    - `Audited`: 已审核
+    - `Overruled`: 驳回
+  - 判断示例：
+    ```javascript
+    // ✅ 正确方式 - 直接使用字典值判断
+    if (row.status != 'NotSubmitted') {
+      btnStatus.disabled = true
+    }
+    if (row.status != 'UnderReview') {
+      btnStatus.disabled = true
+    }
+    if (row.status != 'NotSubmitted' && row.status != 'Overruled') {
+      btnStatus.disabled = true
+    }
+    ```
+  - 禁止使用数字或其他编码值进行判断
+
+---
+
+## 📊 规则添加历史记录
+
+> **说明**：此部分用于记录通过 `添加规则：***` 指令添加的规则历史，便于追踪规则变更。
+
+| 添加时间 | 规则内容 | 规则类型 | 目标文件 | 状态 |
+|---------|---------|---------|---------|------|
+| - | - | - | - | - |
+
+---
+
+## ⚠️ 重要提示
+
+1. **智能分类**：AI 助手必须根据规则内容智能判断规则类型，不能盲目添加到 global-development-standards.mdc
+2. **格式保持**：添加规则时，必须保持目标文件的原有格式和结构
+3. **位置选择**：规则应添加到目标文件的合适章节，不能随意插入
+4. **历史记录**：重要规则建议在历史记录中标记，便于后续追踪
+5. **规则验证**：添加前应验证规则是否与现有规则冲突或重复
+
+---
+
+**系统版本**：v2.0  
+**最后更新**：2026-02-06  
+**维护者**：AI 助手

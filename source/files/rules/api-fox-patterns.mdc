@@ -1,0 +1,341 @@
+---
+globs:
+  - "src/api/**/*.js"
+alwaysApply: false
+description: 商厨项目 Apifox API 开发规范
+keywords: ["接口", "API", "apifox", "接口文档", "获取接口"]
+tags: ["接口", "API", "文档"]
+size: small
+trigger: manual
+---
+
+# 商厨项目 Apifox API 开发规范
+
+## Apifox 文档查询规范
+
+### 1. 使用 apifox-mcp-server 查询文档
+
+在开发过程中，当需要查询 Apifox 文档时，必须使用 `apifox-mcp-server` 工具：
+
+```javascript
+// 查询 Apifox 文档示例
+// 使用 apifox-mcp-server 获取接口文档信息
+// 包括接口路径、参数、响应格式等
+```
+
+### 2. 文档查询步骤
+
+1. **确定接口模块**：根据业务需求确定要查询的接口模块
+2. **使用 apifox-mcp-server**：通过 MCP 工具查询相关接口文档
+3. **分析接口信息**：获取接口路径、参数、响应格式等详细信息
+4. **实现前端调用**：根据文档信息实现前端 API 调用
+
+### 3. 文档查询最佳实践
+
+- **优先查询文档**：在实现接口调用前，先查询 Apifox 文档
+- **验证接口信息**：确保获取的接口信息是最新的
+- **参考示例代码**：查看文档中的示例代码和参数说明
+- **注意版本差异**：确认接口版本和参数要求
+
+### 4. 常见查询场景
+
+```javascript
+// 场景1：查询***模块相关接口
+// 使用 apifox-mcp-server 查询***模块的接口文档
+```
+
+#### 5.3 接口分类说明
+
+**查询类接口**：
+
+- `GET /{module}/page` - 分页查询
+- `GET /{module}/{id}` - 根据 ID 查询详情
+
+**操作类接口**：
+
+- `POST /{module}/save` - 新增
+- `POST /{module}/update` - 修改
+- `GET /{module}/del` - 删除
+- `POST /{module}/delObjs` - 批量删除
+- `POST /{module}/exported` - 导出
+
+## 技术栈规范
+
+### 当前技术栈
+
+- **Vue**: 3.2.45
+- **构建工具**: Vite 3.2.3
+- **UI 框架**: Element Plus 2.11.3
+- **状态管理**: Pinia 2.0.22
+- **路由**: Vue Router 4.1.4
+- **HTTP 客户端**: Axios 0.27.2
+- **表格组件**: VXE Table 4.15.10 + VXE PC UI 4.8.20
+- **图表库**: ECharts 5.4.2
+- **包管理**: pnpm npm
+- **代码规范**: ESLint + Prettier
+- **语言**: JavaScript (ES6+)
+- **样式**: SCSS
+- **国际化**: Element Plus 中文语言包
+- **工具库**: Lodash-es, QS, Crypto-js, JSEncrypt
+
+### 2. 函数命名规范
+
+#### 查询类接口 (fetchXXXX)
+
+```javascript
+// 获取列表数据
+export function fetchServiceConfigList(data) {
+  return request({
+    url: "/afterSales/serviceConfig/page",
+    method: "post",
+    data
+  });
+}
+
+// 获取详情数据
+export function fetchUserDetail(id) {
+  return request({
+    url: `/system/user/${id}`,
+    method: "get"
+  });
+}
+
+// 获取树形结构
+export function fetchProjectInstallmentOptions() {
+  return request({
+    url: "/admin/projectMasterData/user/tree",
+    method: "get"
+  });
+}
+
+// 获取下拉选项
+export function fetchProjectOptions() {
+  return request({
+    url: "/admin/projectMasterData/list",
+    method: "get"
+  });
+}
+```
+
+#### 操作类接口 (统一API)
+
+```javascript
+// 新增/修改数据（统一接口）
+export function serviceConfigApi(data) {
+  return request({
+    url: "/sales/serviceConfig/save",
+    method: "post",
+    data
+  });
+}
+
+// 删除数据
+export function deleteServiceConfig(id) {
+  return request({
+    url: `/afterSales/serviceConfig/del/${id}`,
+    method: "get"
+  });
+}
+
+// 批量删除
+export function batchDeleteServiceConfig(ids) {
+  return request({
+    url: "/afterSales/serviceConfig/delObjs",
+    method: "post",
+    data: ids
+  });
+}
+
+// 状态更新
+export function invalidPriceConfig(id) {
+  return request({
+    url: `/sale/priceConfig/invalid/${id}`,
+    method: "post"
+  });
+}
+```
+
+#### 状态管理接口
+
+```javascript
+// 更新状态
+export function updateUserStatus(id, status) {
+  return request({
+    url: "/api/user/status",
+    method: "put",
+    data: {
+      id: id,
+      status: status,
+    },
+  });
+}
+```
+
+#### 导出接口
+
+```javascript
+// 导出数据
+export function exportUserData(data) {
+  return request({
+    url: "/api/user/export",
+    method: "post",
+    data,
+    responseType: "blob",
+  });
+}
+```
+
+### 1. JSDoc 注释规范
+
+> **⚠️ 基础规范**：JSDoc 注释的基础格式、常用标签、完整示例等通用规范请参考 [vue-development-patterns.mdc](./vue-development-patterns.mdc) 中的"JSDoc 注释规范"章节。
+
+**接口封装专用的 JSDoc 规范要求**：
+
+```javascript
+/**
+ * 获取用户列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.pageNum - 页码
+ * @param {number} params.pageSize - 每页数量
+ * @param {string} params.keyword - 搜索关键词
+ * @param {string} params.status - 状态筛选
+ * @returns {Promise<Object>} 返回用户列表数据
+ */
+export function fetchUserList(params) {
+  return request({
+    url: "/api/user/list",
+    method: "get",
+    params,
+  });
+}
+
+/**
+ * 用户信息类型定义
+ * @typedef {Object} UserInfo
+ * @property {string} id - 用户ID
+ * @property {string} username - 用户名
+ * @property {string} email - 邮箱
+ * @property {string} status - 状态
+ * @property {string} createTime - 创建时间
+ */
+
+/**
+ * 创建用户
+ * @param {UserInfo} data - 用户信息
+ * @returns {Promise<Object>} 创建结果
+ */
+export function createUser(data) {
+  return request({
+    url: "/api/user",
+    method: "post",
+    data,
+  });
+}
+```
+
+**接口封装专用的 JSDoc 注释规范要求**：
+- **禁止@example**: ⚠️ 按照 api-fox-patterns.mdc 进行接口封装时，JSDoc 注释规范注解中**禁止生成@example示例**
+- **必需参数**: 必须包含@param参数说明
+- **必需返回值**: 必须包含@returns返回值说明
+- **类型定义**: 复杂对象使用@typedef定义类型
+- **简洁明了**: 注释内容简洁明了，避免冗余
+
+### 2. 请求配置规范
+
+```javascript
+// 标准请求配置
+export function standardApi(config) {
+  return request({
+    url: config.url,
+    method: config.method,
+    params: config.params,
+    data: config.data,
+    responseType: config.responseType || "json",
+  });
+}
+```
+
+## 请求配置规范
+
+### 1. 基础配置
+
+```javascript
+import request from "@/utils/request";
+
+// 标准请求配置
+export function standardApi(config) {
+  return request({
+    url: config.url,
+    method: config.method,
+    params: config.params,
+    data: config.data,
+    responseType: config.responseType || "json",
+  });
+}
+```
+
+### 2. 参数传递规范
+
+```javascript
+// 查询参数 - 使用 params
+export function fetchData(params) {
+  return request({
+    url: "/api/data",
+    method: "get",
+    params: {
+      pageNum: params.pageNum,
+      pageSize: params.pageSize,
+      keyword: params.keyword,
+    },
+  });
+}
+
+// 请求体参数 - 使用 data
+export function createData(data) {
+  return request({
+    url: "/api/data",
+    method: "post",
+    data: {
+      name: data.name,
+      description: data.description,
+      status: data.status,
+    },
+  });
+}
+```
+
+### 3. 响应处理规范
+
+```javascript
+// 标准响应处理
+export async function handleApiResponse(apiCall) {
+  try {
+    const response = await apiCall();
+    return {
+      success: true,
+      data: response.data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: null,
+      error: error.message || "请求失败",
+    };
+  }
+}
+```
+
+## 接口文档规范
+
+> **⚠️ JSDoc 注释规范**：接口封装时的 JSDoc 注释规范要求请参考本文件中的"JSDoc 注释规范"章节（第1节）。
+
+## 注意事项
+
+- 🔴 **文档更新**: 通过mcp工具查阅apifox文档时，始终获取最新的文档，如获取不到则要更新apifox文档
+- 🔴 **性能考虑**: 优化前端请求
+- 🔴 **安全注意**: 注意敏感字段的处理和权限控制
+- 🔴 **销售特色**: 注意房地产销售行业的特殊业务需求
+
+- 🔴 **代码复用**：避免重复代码，提取公共函数
+- 🔴  **性能优化**：合理使用缓存和防抖机制
+- 🔴 **安全考虑**：注意参数验证和权限控制

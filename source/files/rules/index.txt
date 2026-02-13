@@ -1,0 +1,260 @@
+---
+alwaysApply: true
+description: 规则文件索引，用于智能加载规则文件，避免上下文溢出
+---
+
+# 规则文件索引
+
+本文件作为规则文件的索引和导航，帮助 AI 根据任务类型和上下文智能加载相应的规则文件。
+
+## 📋 规则文件分类
+
+### 🔴 核心规则（始终加载）
+
+#### global-development-standards.mdc
+- **文件路径**: `.cursor/rules/global-development-standards.mdc`
+- **加载策略**: `alwaysApply: true`（始终加载）
+- **文件大小**: ~869 行
+- **适用场景**: 所有开发场景
+- **主要内容**:
+  - 全局开发规范
+  - 代码注释规范
+  - Apifox 接口文档规范
+  - 字典使用规范
+  - Element Plus 组件配置规范
+  - UI 规范与交互标准
+- **关键词**: `全局规范`, `开发规范`, `代码规范`, `注释规范`
+
+---
+
+### 🟢 框架规则（按文件类型自动加载）
+
+#### vue-development-patterns.mdc
+- **文件路径**: `.cursor/rules/vue-development-patterns.mdc`
+- **加载策略**: `alwaysApply: false`，通过 `globs: *.vue` 自动匹配
+- **文件大小**: ~1711 行
+- **适用场景**: 
+  - 编辑 `.vue` 文件
+  - Vue 3 组件开发
+  - Composition API 使用
+- **主要内容**:
+  - Vue 3 + Composition API 规范
+  - 响应式数据管理
+  - 组合式函数 (Composables)
+  - 状态管理 (Pinia)
+  - 路由管理
+  - 事件处理
+  - 表单处理
+- **关键词**: `vue3`, `composition-api`, `组合式api`, `响应式`, `pinia`, `路由`
+- **触发条件**: 
+  - 编辑 `.vue` 文件时自动加载
+  - 用户提到 "Vue"、"组合式API" 等关键词
+
+---
+
+### 🟡 组件规则（按组件类型按需加载）
+
+#### TableCommon-项目规则.mdc
+- **文件路径**: `.cursor/rules/TableCommon-项目规则.mdc`
+- **加载策略**: `alwaysApply: false`，通过 `globs` 精确匹配
+- **文件大小**: ~5484 行（大文件）
+- **适用场景**:
+  - 编辑 `listData.js` 配置文件
+  - 编辑列表页 `index.vue` 文件
+  - 使用 TableCommon 组件
+  - 配置表格列、查询条件
+- **主要内容**:
+  - TableCommon 组件完整使用规则
+  - listData.js 配置详解
+  - 列配置、查询条件配置
+  - 按钮状态控制 (showRowBtn)
+  - formatter 和 slots 使用规范
+  - 组件插槽详解
+  - 常用功能组合使用
+- **关键词**: `TableCommon`, `列表页`, `listData`, `表格`, `分页`, `表格配置`, `查询条件`
+- **触发条件**:
+  - 编辑 `**/listData.js` 文件
+  - 编辑 `**/index.vue`（列表页）
+  - 用户提到 "TableCommon"、"列表页"、"表格配置"
+- **⚠️ 注意**: 大文件，仅在需要时加载
+
+#### component-usage-guide.mdc
+- **文件路径**: `.cursor/rules/component-usage-guide.mdc`
+- **加载策略**: `alwaysApply: false`，通过 `globs` 匹配组件目录
+- **文件大小**: ~1641 行
+- **适用场景**:
+  - 使用自定义组件（SwitchStatus、FileUpload 等）
+  - 编辑组件相关代码
+  - 组件集成和配置
+- **主要内容**:
+  - SwitchStatus 组件使用
+  - FileUpload 组件使用
+  - ProjectInstallmentSelect 组件使用
+  - ProjectInstallmentSearch 组件使用
+  - Card 组件使用
+  - NumberRange 组件使用
+  - DictTag 组件使用
+- **关键词**: `SwitchStatus`, `FileUpload`, `ProjectInstallment`, `自定义组件`, `组件使用`
+- **触发条件**:
+  - 编辑 `**/components/**/*.vue` 文件
+  - 使用特定组件名称
+  - 用户提到组件名称
+
+#### vue-component-split-patterns.mdc
+- **文件路径**: `.cursor/rules/vue-component-split-patterns.mdc`
+- **加载策略**: `alwaysApply: false`，通过 `globs: views/**/*.vue` 匹配
+- **文件大小**: ~304 行
+- **适用场景**:
+  - 组件拆分场景
+  - 局部小组件开发
+  - 组件重构
+- **主要内容**:
+  - 组件拆分原则
+  - 局部小组件拆分规范
+  - 组件使用规范
+- **关键词**: `组件拆分`, `局部组件`, `小组件`, `组件重构`
+- **触发条件**:
+  - 编辑 `src/views/**/components/**/*.vue` 文件
+  - 用户提到 "组件拆分"、"局部组件"
+
+---
+
+### 🔵 工具规则（按使用场景按需加载）
+
+#### api-fox-patterns.mdc
+- **文件路径**: `.cursor/rules/api-fox-patterns.mdc`
+- **加载策略**: `alwaysApply: false`，手动触发加载
+- **文件大小**: ~337 行
+- **适用场景**:
+  - 查询接口文档
+  - API 接口对接
+  - 接口字段映射
+- **主要内容**:
+  - Apifox 文档查询规范
+  - 接口文档查询流程
+  - 字段映射规范
+- **关键词**: `接口`, `API`, `apifox`, `接口文档`, `获取接口`
+- **触发条件**:
+  - 用户明确提到 "查询接口"、"获取接口"、"接口文档"
+  - 编辑 `src/api/**/*.js` 文件
+  - 进行接口对接工作
+
+#### api-integration-workflow.mdc
+- **文件路径**: `.cursor/rules/api-integration-workflow.mdc`
+- **加载策略**: `alwaysApply: false`，手动触发加载
+- **文件大小**: ~600 行
+- **适用场景**:
+  - 接口联调工作
+  - 字段对接修改
+  - 按照 Apifox 文档修改字段
+  - 表单字段与接口字段对齐
+- **主要内容**:
+  - 接口联调完整工作流程
+  - 字段修改规范（只修改 key，不新增不删除）
+  - 禁止字段映射原则
+  - 直接传参规范
+  - 修改检查清单
+- **关键词**: `接口联调`, `字段对接`, `字段修改`, `apifox对接`, `接口对接`, `字段映射`
+- **触发条件**:
+  - 用户提到 "接口联调"、"字段对接"、"按照接口文档修改字段"
+  - 开发者提供 Apifox 文档进行字段对接
+  - 需要修改模块字段以匹配接口文档
+  - 编辑 `listData.js`、表单组件、API 文件进行字段对接
+
+---
+
+## 🎯 加载策略说明
+
+### 自动加载（L1 - 核心层）
+- `global-development-standards.mdc` - 始终加载（基础规范，体积小）
+
+### 上下文加载（L2 - 按文件类型）
+- 根据 `globs` 模式自动匹配当前编辑的文件
+- 编辑 `.vue` 文件 → 自动加载 `vue-development-patterns.mdc`
+- 编辑 `listData.js` → 自动加载 `TableCommon-项目规则.mdc`
+- 编辑 `components/**` → 自动加载 `component-usage-guide.mdc`
+
+### 按需加载（L3 - 技能层）
+- AI 根据用户任务和关键词主动加载
+- 用户提到 "TableCommon" → 加载 `TableCommon-项目规则.mdc`
+- 用户提到 "SwitchStatus" → 加载 `component-usage-guide.mdc`
+- 用户提到 "查询接口" → 加载 `api-fox-patterns.mdc`
+
+---
+
+## 📊 规则文件大小统计
+
+| 规则文件 | 行数 | 大小分类 | 加载策略 |
+|---------|------|---------|---------|
+| global-development-standards.mdc | ~869 | 小 | alwaysApply: true |
+| vue-development-patterns.mdc | ~1711 | 中 | globs: *.vue |
+| TableCommon-项目规则.mdc | ~5484 | 大 | globs: listData.js, index.vue |
+| component-usage-guide.mdc | ~1641 | 中 | globs: components/** |
+| vue-component-split-patterns.mdc | ~304 | 小 | globs: views/**/*.vue |
+| api-fox-patterns.mdc | ~337 | 小 | 手动触发 |
+| api-integration-workflow.mdc | ~600 | 中 | 手动触发 |
+
+**总行数**: ~12146 行（如果全部加载）
+
+**优化后**: 通常只加载 1-3 个文件（~2000-4000 行）
+
+---
+
+## 🔍 关键词索引
+
+### 按功能分类
+
+**表格/列表相关**:
+- `TableCommon`, `列表页`, `listData`, `表格`, `分页`, `表格配置`, `查询条件`
+- → 加载: `TableCommon-项目规则.mdc`
+
+**组件相关**:
+- `SwitchStatus`, `FileUpload`, `ProjectInstallment`, `自定义组件`, `组件使用`
+- → 加载: `component-usage-guide.mdc`
+
+**Vue 开发相关**:
+- `vue3`, `composition-api`, `组合式api`, `响应式`, `pinia`, `路由`
+- → 加载: `vue-development-patterns.mdc`
+
+**组件拆分相关**:
+- `组件拆分`, `局部组件`, `小组件`, `组件重构`
+- → 加载: `vue-component-split-patterns.mdc`
+
+**接口相关**:
+- `接口`, `API`, `apifox`, `接口文档`, `获取接口`
+- → 加载: `api-fox-patterns.mdc`
+
+**接口联调相关**:
+- `接口联调`, `字段对接`, `字段修改`, `apifox对接`, `接口对接`, `字段映射`
+- → 加载: `api-integration-workflow.mdc`
+
+---
+
+## ⚠️ 重要提示
+
+1. **大文件按需加载**: `TableCommon-项目规则.mdc` 体积较大（5484行），仅在需要时加载
+2. **精确匹配**: 通过优化 `globs` 模式，避免不必要的规则加载
+3. **关键词触发**: AI 可以根据用户提到的关键词主动加载相应规则
+4. **上下文优化**: 通过分层加载，减少上下文占用，提高响应速度
+
+---
+
+## 📝 使用建议
+
+### 对于开发者
+- 明确任务类型，使用相关关键词，帮助 AI 加载正确的规则
+- 例如：说 "配置 TableCommon 列表页" 而不是只说 "配置表格"
+
+### 对于 AI
+- 根据当前编辑的文件类型自动加载对应规则
+- 根据用户提到的关键词主动加载相关规则
+- 优先加载小文件，大文件按需加载
+- 避免同时加载多个大文件
+
+---
+
+## 🔄 规则文件更新记录
+
+- 2025-01-XX: 创建规则索引文件，优化加载策略
+- 2026-02-06: 新增 `api-integration-workflow.mdc` 接口联调工作流规范
+- 后续更新规则文件时，请同步更新本索引文件

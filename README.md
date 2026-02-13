@@ -118,6 +118,182 @@ hexo g -d
 
 菜单项本身在主题配置 `_config.butterfly.yml` 的 `menu` 中修改（显示名、路径、图标）；归档/标签/分类的**页面内容**完全由 Hexo 根据文章与插件自动生成，无需手写 Markdown 页面。
 
+## 如何写文章（分类与标签）
+
+### 1. 新建一篇文章
+
+在项目根目录执行：
+
+```bash
+hexo new "文章标题"
+```
+
+会在 `source/_posts/` 下生成一个 Markdown 文件，例如 `文章标题.md`。
+
+### 2. 编辑文章：front matter + 正文
+
+用任意编辑器打开该文件，**最上方两行 `---` 之间的内容叫 front matter**，用来设置标题、日期、**分类**、**标签**等；下面用 Markdown 写正文即可。
+
+### 3. 如何添加分类（categories）
+
+在 front matter 里写 `categories`：
+
+- **单分类**（最常用）：
+  ```yaml
+  categories: 随笔
+  ```
+  或
+  ```yaml
+  categories:
+    - 随笔
+  ```
+
+- **多级分类**（如「编程 / 前端」）：
+  ```yaml
+  categories:
+    - 编程
+    - 前端
+  ```
+
+文章会出现在「分类」菜单下对应分类页面里；若该分类第一次出现，Hexo 会在生成时自动创建该分类页。
+
+### 4. 如何添加标签（tags）
+
+在 front matter 里写 `tags`，一篇文章可以有多个标签：
+
+```yaml
+tags:
+  - Vue
+  - 前端
+  - 读书笔记
+```
+
+或单行列表：
+
+```yaml
+tags: [Vue, 前端, 读书笔记]
+```
+
+文章会出现在「标签」菜单下各个对应标签页面里。
+
+### 5. 一篇完整示例
+
+```yaml
+---
+title: 我的第一篇文章
+date: 2026-02-12 12:00:00
+categories: 随笔
+tags:
+  - 日常
+  - 记录
+# 可选：首页摘要（不写则自动截取正文前一段）
+description: 这是文章的简短摘要，会显示在首页列表里。
+# 可选：文章封面图（Butterfly 主题）
+cover: https://example.com/img.jpg
+---
+
+这里开始用 **Markdown** 写正文即可。
+```
+
+### 6. 常用可选字段（front matter）
+
+| 字段 | 说明 |
+|------|------|
+| `title` | 文章标题（新建时已生成，可改） |
+| `date` | 发布日期（新建时已生成） |
+| `updated` | 更新日期（可选，不写一般用文件修改时间） |
+| `categories` | 分类，见上文 |
+| `tags` | 标签，见上文 |
+| `description` | 首页/摘要显示的文字 |
+| `cover` | 文章封面图 URL（Butterfly 主题） |
+| `top_img` | 文章页顶部图（Butterfly） |
+| `comments` | 是否开启评论，如 `true` / `false` |
+
+### 7. 如何在文章里添加附件
+
+附件（PDF、ZIP、图片等）需要先放到**站点源码**里，再在文章中用链接指向即可。
+
+**步骤一：建目录并放入文件**
+
+在 `source/` 下建一个专门放附件的目录，例如 `files` 或 `attachments`，把文件放进去：
+
+```
+source/
+  files/           ← 新建
+    readme.pdf
+    demo.zip
+  _posts/
+    xxx.md
+```
+
+**步骤二：在文章里写链接**
+
+生成后，`source/files/` 下的文件会出现在站点的 `/files/` 路径下。在 Markdown 里用普通链接即可：
+
+```markdown
+[下载说明文档](/files/readme.pdf)
+[示例压缩包](/files/demo.zip)
+```
+
+或带说明文字：
+
+```markdown
+- **附件**：[项目说明.pdf](/files/readme.pdf)
+- **示例代码**：[demo.zip](/files/demo.zip)
+```
+
+**注意：**
+
+- 路径以 `/` 开头表示从站点根目录算（本仓库 `root: /`，所以是 `/files/xxx.pdf`）。
+- 若站点部署在子路径（如 `https://xxx.github.io/blog/`），需在 `_config.yml` 里设置 `root: /blog/`，链接仍写 `/blog/files/xxx.pdf` 或使用根路径后由 Hexo 自动加上 `root`。
+- 文件名建议用英文或数字，避免中文或特殊符号导致部分环境无法访问。
+
+**图片附件**：图片也可放在 `source/files/` 或 `source/images/`，在文中用 `![说明](/files/xxx.png)` 插入；若开启 `post_asset_folder`（见下方），每篇文章可有单独资源目录。
+
+**可选：为每篇文章建资源目录**
+
+在 `_config.yml` 里设置 `post_asset_folder: true`，执行 `hexo new "标题"` 时会同时生成同名文件夹（如 `标题.md` 与 `标题/`），把该文用的图片或附件放进该文件夹，在文章里用相对路径引用（如 `![图](标题/1.png)`）。适合「每篇文章自带资源」的写法；若附件要全站共用，仍推荐用上面的 `source/files/` 方式。
+
+### 8. 写完后
+
+保存文件后，本地预览：
+
+```bash
+hexo clean
+hexo g
+hexo s
+```
+
+在首页、归档、标签、分类里都能看到新文章；确认无误后再执行 `hexo d` 部署到线上。
+
+### 9. 简历页仅博主可见
+
+导航中的「简历」及 `/resume/` 页面做了访问控制：未验证时隐藏菜单，直接打开 `/resume/` 会显示「请输入访问码」遮罩。
+
+- **设置访问码**：编辑 `source/js/resume-guard.js`，将开头的 `RESUME_SECRET = 'change_me'` 改为你自己设置的访问码（仅自己知道即可）。
+- **使用**：在任意页面输入正确访问码并确认后，会记住验证状态（约 1 年），之后导航会显示「简历」、简历页可正常查看。
+- **说明**：验证逻辑在前端执行，属于「防君子不防小人」的软性控制；简历 HTML 仍在页面中，仅通过遮罩与菜单隐藏减少被随意看到。
+
+### 10. 访客/浏览量统计（Umami，分站点真实统计）
+
+本站已关闭不蒜子，改用 **Umami** 做「仅本博客」的访客数（UV）与浏览量（PV）统计。
+
+1. **注册并添加网站**  
+   打开 [umami.is](https://umami.is) 注册账号，在控制台里「添加网站」，填你的博客地址（如 `https://foolishma.github.io`）。
+
+2. **获取 website_id**  
+   添加完成后，在「跟踪代码」或网站详情里找到 **Website ID**（一串 UUID），复制。
+
+3. **获取 API 密钥（用于侧栏显示 UV/PV）**  
+   在 Umami 里进入 **设置 → API 密钥**，创建新密钥并复制。
+
+4. **填入主题配置**  
+   编辑 `_config.butterfly.yml`，找到 `umami_analytics`：
+   - `website_id: ''` → 粘贴你的 Website ID（保留引号）。
+   - `UV_PV.token: ''` → 粘贴你的 API 密钥（保留引号）。
+
+保存后执行 `hexo g` 再预览/部署，侧栏「网站信息」中的「本站访客数」「本站总浏览量」会显示**本博客**的真实统计。未填 `website_id` 和 `token` 时，这两项可能一直转圈或为空，属正常，填好即恢复。
+
 ## 配置说明
 
 - 站点与 URL：根目录 `_config.yml`（title、url、deploy 等）。

@@ -19,6 +19,7 @@ menu:
   归档: "/archives/ || fas fa-archive"
   标签: "/tags/ || fas fa-tags"
   分类: "/categories/ || fas fa-folder-open"
+  简历: "/resume/ || fas fa-file-alt"
 
 # --------------------------------------
 # 代码块设置
@@ -314,9 +315,9 @@ wordcount:
   total_wordcount: true
 
 busuanzi:
-  site_uv: true
-  site_pv: true
-  page_pv: true
+  site_uv: false
+  site_pv: false
+  page_pv: false
 
 # --------------------------------------
 # 数学公式
@@ -421,7 +422,7 @@ facebook_comments:
   user_id:
   pageSize: 10
   order_by: social
-  lang: zh_TW
+  lang: zh_CN
 
 twikoo:
   envId:
@@ -478,16 +479,19 @@ cloudflare_analytics:
 microsoft_clarity:
 
 umami_analytics:
-  enable: false
+  enable: true
+  # 使用 Umami Cloud 留空即可；自建填实例地址如 https://analytics.xxx.com
   serverURL:
   script_name: script.js
-  website_id:
+  # 在 https://umami.is 添加网站后，从「跟踪代码」里复制 data-website-id（UUID）
+  website_id: '03e1325b-e0b7-4755-9b79-2325e7df4f6c'
   option:
   UV_PV:
-    site_uv: false
-    site_pv: false
+    site_uv: true
+    site_pv: true
     page_pv: false
-    token:
+    # Umami Cloud：设置 → API 密钥 → 创建并粘贴；自建为 Bearer Token
+    token: 'api_IxeRPZPySCT1Xt9Vj6upCMSZ3ReOnekm'
 
 google_tag_manager:
   tag_id:
@@ -712,6 +716,7 @@ css_prefix: true
 inject:
   head:
   bottom:
+    - <script src="/js/resume-guard.js"></script>
 
 CDN:
   internal_provider: local

@@ -1,0 +1,1650 @@
+---
+globs:
+  - "**/components/**/*.vue"
+  - "**/*SwitchStatus*.vue"
+  - "**/*FileUpload*.vue"
+  - "**/*ProjectInstallment*.vue"
+  - "**/*NumberRange*.vue"
+  - "**/*DictTag*.vue"
+alwaysApply: false
+description: 项目自定义组件使用规范与示例指南
+keywords: ["SwitchStatus", "FileUpload", "ProjectInstallment", "NumberRange", "DictTag", "自定义组件", "组件使用"]
+tags: ["组件", "自定义组件"]
+size: medium
+---
+
+# 项目自定义组件使用规范
+
+本文件包含项目中所有自定义组件的使用规范、API 说明、配置示例和最佳实践。
+
+---
+
+## 1. SwitchStatus 行内开关组件
+
+`SwitchStatus` 是一个用于表格行内切换启用/禁用状态的开关组件，支持权限控制、API 自动调用、确认对话框等功能。
+
+### 1.1 组件特性
+
+- ✅ **双向绑定**: 支持 `v-model` 双向数据绑定
+- ✅ **权限控制**: 通过 `permission` 属性控制按钮可见性
+- ✅ **API 集成**: 自动调用 API 更新状态，无需手动处理
+- ✅ **确认对话框**: 支持切换前确认提示（可配置）
+- ✅ **加载状态**: 自动显示加载状态，提升用户体验
+- ✅ **错误处理**: 自动处理 API 错误并提示用户
+- ✅ **自定义样式**: 支持自定义开关颜色样式
+
+### 1.2 组件 Props
+
+| 属性名           | 类型                    | 默认值                                                            | 说明                                               |
+| ---------------- | ----------------------- | ----------------------------------------------------------------- | -------------------------------------------------- |
+| `modelValue`     | `String/Number/Boolean` | `false`                                                           | 当前开关值（v-model 绑定）                         |
+| `activeValue`    | `String/Number/Boolean` | `1`                                                               | 激活状态的值                                       |
+| `inactiveValue`  | `String/Number/Boolean` | `0`                                                               | 非激活状态的值                                     |
+| `row`            | `Object`                | `{}`                                                              | 当前行数据对象（必须包含 `id` 字段）               |
+| `api`            | `Function`              | `undefined`                                                       | 更新状态的 API 方法（可选，不传则不调用 API）      |
+| `statusField`    | `String`                | `'enable'`                                                        | 状态字段名（用于 API 请求参数）                    |
+| `instance`       | `Object`                | `{}`                                                              | 组件实例（通常传入 `proxy`，用于访问 `$modal` 等） |
+| `permission`     | `String`                | `''`                                                              | 权限标识（为空则不控制权限）                       |
+| `disabled`       | `Boolean`               | `false`                                                           | 是否禁用开关                                       |
+| `showConfirm`    | `Boolean`               | `true`                                                            | 是否显示确认对话框                                 |
+| `confirmMessage` | `String`                | `'是否确认变更状态'`                                              | 确认对话框提示文本                                 |
+| `switchStyle`    | `String`                | `'--el-switch-on-color: #13ce66; --el-switch-off-color: #dcdfe6'` | 开关样式（CSS 变量）                               |
+| `extendParams`   | `Object`                | `{}`                                                              | 扩展参数（API 调用时额外传递的参数）               |
+
+### 1.3 组件事件
+
+| 事件名              | 参数    | 说明               |
+| ------------------- | ------- | ------------------ |
+| `update:modelValue` | `value` | 开关值变化时触发   |
+| `success`           | -       | API 调用成功时触发 |
+| `error`             | -       | API 调用失败时触发 |
+
+### 1.4 API 方法要求
+
+组件会自动调用传入的 `api` 方法，传递的参数格式为：
+
+```javascript
+{
+  id: row.id,                    // 行数据的ID
+  [statusField]: newStatusValue // 新状态值（1或0）
+}
+```
+
+**API 返回值要求：**
+
+```javascript
+{
+  code: 0,        // 0表示成功，其他值表示失败
+  msg: '操作成功'  // 提示信息
+}
+```
+
+### 1.5 基础使用示例
+
+#### 1.5.1 在 TableCommon 中使用（推荐）
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #featureColumn="{ row, column }">
+      <!-- 启用/禁用状态列 -->
+      <template v-if="column.field == 'isEnable'">
+        <SwitchStatus
+          v-model="row.isEnable"
+          :row="row"
+          :active-value="1"
+          :inactive-value="0"
+          :instance="proxy"
+          :api="updateRoomStatus"
+          :status-field="'isEnable'"
+          permission="baseInfo:room:edit"
+          @success="reload()"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { ref, getCurrentInstance } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import SwitchStatus from '@/components/SwitchStatus/index.vue'
+import { updateRoomStatus } from '@/api/baseInfo/room'
+
+const { proxy } = getCurrentInstance()
+
+// 刷新表格数据
+const reload = () => {
+  // TableCommon 的刷新逻辑
+}
+</script>
+```
+
+#### 1.5.2 在 el-table 中使用
+
+```vue
+<template>
+  <el-table :data="tableData">
+    <el-table-column label="启用状态" width="100" align="center">
+      <template #default="{ row }">
+        <SwitchStatus
+          v-model="row.isEnable"
+          :row="row"
+          :active-value="1"
+          :inactive-value="0"
+          :instance="proxy"
+          :api="updateRoomStatus"
+          :status-field="'isEnable'"
+          permission="baseInfo:room:edit"
+          @success="handleSuccess"
+        />
+      </template>
+    </el-table-column>
+  </el-table>
+</template>
+
+<script setup>
+import { ref, getCurrentInstance } from 'vue'
+import SwitchStatus from '@/components/SwitchStatus/index.vue'
+import { updateRoomStatus } from '@/api/baseInfo/room'
+
+const { proxy } = getCurrentInstance()
+const tableData = ref([])
+
+const handleSuccess = () => {
+  proxy.$modal.msgSuccess('状态更新成功')
+  // 刷新表格数据
+  loadTableData()
+}
+</script>
+```
+
+### 1.6 API 方法定义示例
+
+```javascript
+// src/api/baseInfo/room.js
+import request from '@/utils/request'
+
+/**
+ * 更新房间启用状态
+ * @param {Object} data - 更新参数
+ * @param {string} data.id - 房间ID
+ * @param {number} data.isEnable - 启用状态（1:启用, 0:禁用）
+ * @returns {Promise<Object>} 返回更新结果
+ */
+export function updateRoomStatus(data) {
+  return request({
+    url: '/sale/saleMasterHouseSource/updateStatus',
+    method: 'post',
+    data
+  })
+}
+```
+
+### 1.7 高级配置示例
+
+#### 1.7.1 自定义确认提示
+
+```vue
+<SwitchStatus
+  v-model="row.isEnable"
+  :row="row"
+  :active-value="1"
+  :inactive-value="0"
+  :instance="proxy"
+  :api="updateRoomStatus"
+  :status-field="'isEnable'"
+  confirm-message="确认要变更该房间的启用状态吗？"
+  permission="baseInfo:room:edit"
+  @success="reload()"
+/>
+```
+
+#### 1.7.2 禁用确认对话框
+
+```vue
+<SwitchStatus
+  v-model="row.isEnable"
+  :row="row"
+  :active-value="1"
+  :inactive-value="0"
+  :instance="proxy"
+  :api="updateRoomStatus"
+  :status-field="'isEnable'"
+  :show-confirm="false"
+  permission="baseInfo:room:edit"
+  @success="reload()"
+/>
+```
+
+#### 1.7.3 自定义开关样式
+
+```vue
+<SwitchStatus
+  v-model="row.isEnable"
+  :row="row"
+  :active-value="1"
+  :inactive-value="0"
+  :instance="proxy"
+  :api="updateRoomStatus"
+  :status-field="'isEnable'"
+  switch-style="--el-switch-on-color: #409eff; --el-switch-off-color: #dcdfe6"
+  permission="baseInfo:room:edit"
+  @success="reload()"
+/>
+```
+
+#### 1.7.4 不使用 API（仅 UI 切换）
+
+```vue
+<SwitchStatus
+  v-model="row.isEnable"
+  :row="row"
+  :active-value="1"
+  :inactive-value="0"
+  :instance="proxy"
+  @update:modelValue="handleStatusChange"
+/>
+
+<script setup>
+const handleStatusChange = value => {
+  console.log('状态已切换为:', value)
+  // 手动处理状态更新逻辑
+}
+</script>
+```
+
+#### 1.7.5 自定义状态值（字符串类型）
+
+```vue
+<SwitchStatus
+  v-model="row.status"
+  :row="row"
+  active-value="enabled"
+  inactive-value="disabled"
+  :instance="proxy"
+  :api="updateStatus"
+  :status-field="'status'"
+  permission="module:function:edit"
+  @success="reload()"
+/>
+```
+
+### 1.8 listData.js 配置
+
+在 `listData.js` 中配置需要显示开关的列：
+
+```javascript
+// src/views/baseInfo/room/listData.js
+export const listData = {
+  columns: [
+    {
+      title: '启用状态',
+      dataIndex: 'isEnable',
+      width: 100,
+      align: 'center',
+      slots: { default: 'featureColumn' } // 使用 featureColumn 插槽
+    }
+  ]
+}
+```
+
+### 1.9 注意事项
+
+1. **必须传递 `row` 属性**: 组件需要从 `row.id` 获取数据 ID，用于 API 调用
+2. **API 方法必须返回正确格式**: API 返回的格式必须包含 `code` 字段（0 表示成功）
+3. **状态字段名**: 确保 `statusField` 属性与 API 接口期望的字段名一致
+4. **权限控制**: 如果设置了 `permission`，组件会根据权限自动禁用开关
+5. **实例对象**: `instance` 通常传入 `proxy`（通过 `getCurrentInstance()` 获取），用于访问全局方法
+6. **状态值类型**: `activeValue` 和 `inactiveValue` 的类型必须与 `modelValue` 的类型一致
+
+### 1.10 错误处理
+
+组件会自动处理以下错误情况：
+
+- API 调用失败时，显示错误提示并恢复开关状态
+- 用户取消确认对话框时，开关状态不会改变
+- 无权限时，开关自动禁用
+
+### 1.11 完整示例
+
+```vue
+<template>
+  <div class="page-container">
+    <TableCommon ref="tableRef" :list-data="listData" :methods="tableMethods">
+      <template #featureColumn="{ row, column }">
+        <!-- 启用状态开关 -->
+        <template v-if="column.field == 'isEnable'">
+          <SwitchStatus
+            v-model="row.isEnable"
+            :row="row"
+            :active-value="1"
+            :inactive-value="0"
+            :instance="proxy"
+            :api="updateRoomStatus"
+            :status-field="'isEnable'"
+            permission="baseInfo:room:edit"
+            @success="handleStatusChangeSuccess"
+          />
+        </template>
+      </template>
+    </TableCommon>
+  </div>
+</template>
+
+<script setup>
+import { ref, getCurrentInstance } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import SwitchStatus from '@/components/SwitchStatus/index.vue'
+import { updateRoomStatus } from '@/api/baseInfo/room'
+import { listData } from './listData'
+
+const { proxy } = getCurrentInstance()
+const tableRef = ref(null)
+
+const tableMethods = {
+  // 表格操作方法
+}
+
+const handleStatusChangeSuccess = () => {
+  proxy.$modal.msgSuccess('状态更新成功')
+  // 刷新表格
+  tableRef.value?.reload()
+}
+</script>
+```
+
+---
+
+## 2. FileUpload 文件上传组件
+
+`FileUpload` 是一个基于 Element Plus `el-upload` 封装的文件上传组件，支持多文件上传、文件类型限制、大小限制等功能。
+
+### 2.1 组件特性
+
+- ✅ **多文件上传**: 支持同时上传多个文件
+- ✅ **文件类型限制**: 可配置允许上传的文件类型
+- ✅ **文件大小限制**: 可配置单个文件的最大大小
+- ✅ **文件数量限制**: 可配置最多上传文件数量
+- ✅ **文件列表展示**: 自动展示已上传文件列表，支持预览和删除
+- ✅ **双向绑定**: 支持 `v-model` 双向数据绑定
+- ✅ **禁用状态**: 支持禁用状态（查看模式）
+
+### 2.2 组件 Props
+
+| 属性名       | 类型                  | 默认值                                                       | 说明                     |
+| ------------ | --------------------- | ------------------------------------------------------------ | ------------------------ |
+| `modelValue` | `String/Object/Array` | `null`                                                       | 文件列表（v-model 绑定） |
+| `limit`      | `Number`              | `5`                                                          | 最多上传文件数量         |
+| `fileSize`   | `Number`              | `5`                                                          | 单个文件最大大小（MB）   |
+| `fileType`   | `Array`               | `['doc', 'xls', 'ppt', 'txt', 'pdf', 'docx', 'xlsx', 'png']` | 允许的文件类型           |
+| `isShowTip`  | `Boolean`             | `true`                                                       | 是否显示上传提示         |
+| `isDisabled` | `Boolean`             | `false`                                                      | 是否禁用上传             |
+
+### 2.3 数据格式
+
+**v-model 绑定的数据格式：**
+
+```javascript
+;[
+  {
+    name: '文件名.pdf',
+    url: 'https://example.com/files/file.pdf'
+  },
+  {
+    name: '文档.docx',
+    url: 'https://example.com/files/doc.docx'
+  }
+]
+```
+
+### 2.4 基础使用示例
+
+#### 2.4.1 在表单中使用
+
+```vue
+<template>
+  <el-form :model="formData">
+    <el-form-item label="附件" prop="attachment">
+      <FileUpload
+        v-model="formData.attachment"
+        :limit="5"
+        :file-size="10"
+        :file-type="['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png']"
+      />
+    </el-form-item>
+  </el-form>
+</template>
+
+<script setup>
+import { reactive } from 'vue'
+import FileUpload from '@/components/FileUpload/index.vue'
+
+const formData = reactive({
+  attachment: []
+})
+</script>
+```
+
+#### 2.4.2 禁用状态（查看模式）
+
+```vue
+<template>
+  <el-form :model="formData" :disabled="status === 'view'">
+    <el-form-item label="附件">
+      <FileUpload
+        v-model="formData.attachment"
+        :is-disabled="status === 'view'"
+      />
+    </el-form-item>
+  </el-form>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import FileUpload from '@/components/FileUpload/index.vue'
+
+const status = ref('view') // 'view' | 'edit'
+const formData = reactive({
+  attachment: []
+})
+</script>
+```
+
+#### 2.4.3 隐藏提示信息
+
+```vue
+<template>
+  <FileUpload
+    v-model="fileList"
+    :is-show-tip="false"
+    :file-type="[]"
+    :file-size="0"
+  />
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import FileUpload from '@/components/FileUpload/index.vue'
+
+const fileList = ref([])
+</script>
+```
+
+### 2.5 注意事项
+
+1. **文件格式**: 组件会自动验证文件类型，不符合要求的文件会被拒绝上传
+2. **文件大小**: 组件会自动验证文件大小，超过限制的文件会被拒绝上传
+3. **文件数量**: 超过 `limit` 限制时，会提示错误信息
+4. **上传地址**: 组件内部使用 `/fastdfs/minio/upload` 接口上传文件
+5. **Token 认证**: 组件会自动从 `@/utils/auth` 获取 token 并添加到请求头
+6. **数据回显**: 如果 `modelValue` 是数组格式，组件会自动回显文件列表
+
+### 2.6 完整示例
+
+```vue
+<template>
+  <el-dialog v-model="visible" title="编辑信息">
+    <el-form
+      ref="formRef"
+      v-bind="FORM_CONFIG.defaultConfig"
+      :model="formData"
+      :rules="rules"
+      :disabled="status === 'view'"
+    >
+      <el-row :gutter="16">
+        <el-col v-bind="LAYOUT_CONFIG.colSpan">
+          <el-form-item label="附件" prop="attachment">
+            <FileUpload
+              v-model="formData.attachment"
+              :limit="5"
+              :file-size="10"
+              :file-type="['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png']"
+              :is-disabled="status === 'view'"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </el-form>
+  </el-dialog>
+</template>
+
+<script setup>
+import { reactive, ref } from 'vue'
+import { useStyleConfig } from '@/hooks/useStyleConfig'
+import FileUpload from '@/components/FileUpload/index.vue'
+
+const { FORM_CONFIG, LAYOUT_CONFIG } = useStyleConfig()
+
+const visible = ref(false)
+const status = ref('edit')
+const formData = reactive({
+  attachment: []
+})
+
+const rules = {
+  attachment: [{ required: true, message: '请上传附件', trigger: 'change' }]
+}
+</script>
+```
+
+---
+
+## 3. ProjectInstallmentSelect 项目分期选择组件
+
+`ProjectInstallmentSelect` 是一个用于选择项目分期的下拉选择组件，支持多选、全选、虚拟滚动、分组显示等功能。
+
+### 3.1 组件特性
+
+- ✅ **多选支持**: 支持多选项目分期
+- ✅ **全选功能**: 提供全选/取消全选功能
+- ✅ **分组显示**: 按项目分组显示分期选项
+- ✅ **虚拟滚动**: 使用 `el-select-v2` 实现虚拟滚动，性能优化
+- ✅ **双向绑定**: 支持 `v-model` 双向数据绑定（对象数组格式）
+- ✅ **过滤搜索**: 支持输入关键词过滤选项
+- ✅ **数据缓存**: 自动缓存项目分期数据，避免重复请求
+
+### 3.2 组件 Props
+
+| 属性名            | 类型      | 默认值             | 说明                           |
+| ----------------- | --------- | ------------------ | ------------------------------ |
+| `modelValue`      | `Array`   | `[]`               | 选中的项目分期列表（对象数组） |
+| `placeholder`     | `String`  | `'请选择项目分期'` | 占位符文本                     |
+| `maxCollapseTags` | `Number`  | `1`                | 多选时最多显示的标签数量       |
+| `disabled`        | `Boolean` | `false`            | 是否禁用                       |
+
+### 3.3 数据格式
+
+**v-model 绑定的数据格式：**
+
+```javascript
+;[
+  {
+    installmentId: '分期ID',
+    installmentName: '分期名称',
+    projectId: '项目ID',
+    projectName: '项目名称'
+  }
+]
+```
+
+**组件内部使用 `installmentId` 数组进行选择，但对外暴露的是完整的对象数组。**
+
+### 3.4 组件事件
+
+| 事件名              | 参数    | 说明                         |
+| ------------------- | ------- | ---------------------------- |
+| `update:modelValue` | `Array` | 选中值变化时触发（对象数组） |
+| `change`            | `Array` | 选中值变化时触发（对象数组） |
+
+### 3.5 基础使用示例
+
+#### 3.5.1 在表单中使用
+
+```vue
+<template>
+  <el-form :model="formData">
+    <el-form-item label="项目分期" prop="installmentList">
+      <ProjectInstallmentSelect
+        v-model="formData.installmentList"
+        placeholder="请选择项目分期"
+      />
+    </el-form-item>
+  </el-form>
+</template>
+
+<script setup>
+import { reactive } from 'vue'
+import ProjectInstallmentSelect from '@/components/ProjectInstallmentSelect/index.vue'
+
+const formData = reactive({
+  installmentList: []
+})
+</script>
+```
+
+#### 3.5.2 条件禁用
+
+```vue
+<template>
+  <el-form-item
+    label="项目分期"
+    prop="installmentList"
+    :required="formData.common == 'No'"
+  >
+    <ProjectInstallmentSelect
+      v-model="formData.installmentList"
+      :disabled="formData.common == 'Yes'"
+      placeholder="请选择项目分期"
+    />
+  </el-form-item>
+</template>
+
+<script setup>
+import { reactive } from 'vue'
+import ProjectInstallmentSelect from '@/components/ProjectInstallmentSelect/index.vue'
+
+const formData = reactive({
+  common: 'No', // 'Yes' | 'No'
+  installmentList: []
+})
+</script>
+```
+
+#### 3.5.3 自定义标签显示数量
+
+```vue
+<template>
+  <ProjectInstallmentSelect
+    v-model="formData.installmentList"
+    :max-collapse-tags="3"
+    placeholder="请选择项目分期"
+  />
+</template>
+```
+
+### 3.6 数据初始化示例
+
+```vue
+<script setup>
+import { reactive, onMounted } from 'vue'
+import ProjectInstallmentSelect from '@/components/ProjectInstallmentSelect/index.vue'
+
+const formData = reactive({
+  installmentList: []
+})
+
+// 从接口获取数据后初始化
+onMounted(async () => {
+  const res = await fetchDetail()
+  if (res.data.installmentList) {
+    // 确保数据格式正确
+    formData.installmentList = res.data.installmentList.map(item => ({
+      installmentId: item.installmentId,
+      installmentName: item.installmentName,
+      projectId: item.projectId,
+      projectName: item.projectName
+    }))
+  }
+})
+</script>
+```
+
+### 3.7 注意事项
+
+1. **数据格式**: `v-model` 必须绑定对象数组，不能直接绑定 ID 数组
+2. **数据回显**: 组件会自动从对象数组中解析 `installmentId` 进行回显
+3. **数据缓存**: 组件会自动缓存项目分期数据，多个组件实例共享同一份数据
+4. **Store 缓存**: 组件优先使用 Pinia Store 中的 `projectTree` 数据
+5. **全选功能**: 点击底部的"全选"可以选中所有可选项
+6. **分组显示**: 项目节点作为分组标题显示，不可选择；分期节点可选择
+
+### 3.8 完整示例
+
+```vue
+<template>
+  <el-dialog v-model="visible" title="编辑配置">
+    <el-form
+      ref="formRef"
+      v-bind="FORM_CONFIG.defaultConfig"
+      :model="formData"
+      :rules="rules"
+    >
+      <el-row :gutter="16">
+        <el-col v-bind="LAYOUT_CONFIG.colSpan">
+          <el-form-item
+            label="项目分期"
+            prop="installmentList"
+            :required="formData.common == 'No'"
+          >
+            <ProjectInstallmentSelect
+              ref="selectTreeRef"
+              v-model="formData.installmentList"
+              :disabled="formData.common == 'Yes'"
+              placeholder="请选择项目分期"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </el-form>
+  </el-dialog>
+</template>
+
+<script setup>
+import { reactive, ref } from 'vue'
+import { useStyleConfig } from '@/hooks/useStyleConfig'
+import ProjectInstallmentSelect from '@/components/ProjectInstallmentSelect/index.vue'
+
+const { FORM_CONFIG, LAYOUT_CONFIG } = useStyleConfig()
+
+const visible = ref(false)
+const formData = reactive({
+  common: 'No',
+  installmentList: []
+})
+
+const rules = {
+  installmentList: [
+    {
+      required: true,
+      validator: (rule, value, callback) => {
+        if (formData.common === 'No' && (!value || value.length === 0)) {
+          callback(new Error('请选择项目分期'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
+  ]
+}
+</script>
+```
+
+---
+
+## 4. ProjectInstallmentSearch 项目分期搜索组件
+
+`ProjectInstallmentSearch` 是一个专门用于 `TableCommon` 组件查询条件的项目分期搜索组件，支持项目选择影响分期选项的级联关系。
+
+### 4.1 组件特性
+
+- ✅ **级联选择**: 项目选择后，分期选项自动更新为选中项目的子项
+- ✅ **多选支持**: 支持多选项目和分期
+- ✅ **数据绑定**: 通过 `useAttrs` 自动绑定到查询表单数据
+- ✅ **字段区分**: 根据 `field` 属性自动渲染项目选择或分期选择
+- ✅ **数据缓存**: 自动缓存项目分期数据，避免重复请求
+
+### 4.2 使用场景
+
+**专门用于 `TableCommon` 组件的 `formSlot` 插槽中，作为查询条件使用。**
+
+### 4.3 组件 Props（通过 attrs 传递）
+
+| 属性名  | 类型     | 说明                                                      |
+| ------- | -------- | --------------------------------------------------------- |
+| `field` | `String` | 字段名，必须是 `'projectIdList'` 或 `'installmentIdList'` |
+| `data`  | `Object` | 查询表单数据对象                                          |
+
+### 4.4 组件事件
+
+| 事件名               | 参数    | 说明               |
+| -------------------- | ------- | ------------------ |
+| `project-change`     | `Array` | 项目选择变化时触发 |
+| `installment-change` | `Array` | 分期选择变化时触发 |
+
+### 4.5 listData.js 配置
+
+在 `listData.js` 中配置查询条件：
+
+```javascript
+// src/views/baseInfo/room/listData.js
+export const listData = {
+  queryCondition: [
+    {
+      key: 'projectIdList',
+      label: '项目',
+      controls: 'ElSelect',
+      props: {
+        placeholder: '请选择项目',
+        clearable: true,
+        multiple: true
+      },
+      slots: { default: 'formSlot' } // 使用 formSlot 插槽
+    },
+    {
+      key: 'installmentIdList',
+      label: '分期',
+      controls: 'ElSelect',
+      props: {
+        placeholder: '请选择分期',
+        clearable: true,
+        multiple: true
+      },
+      slots: { default: 'formSlot' } // 使用 formSlot 插槽
+    }
+  ]
+}
+```
+
+### 4.6 基础使用示例
+
+#### 4.6.1 在 TableCommon 中使用
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #formSlot="{ data, field }">
+      <template
+        v-if="field === 'projectIdList' || field === 'installmentIdList'"
+      >
+        <project-installment-search
+          v-model="data[field]"
+          v-bind="{ field, data }"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import TableCommon from '@/components/TableCommon/index.vue'
+import ProjectInstallmentSearch from '@/components/ProjectInstallmentSearch/index.vue'
+import { listData } from './listData'
+</script>
+```
+
+#### 4.6.2 监听选择变化事件
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #formSlot="{ data, field }">
+      <template
+        v-if="field === 'projectIdList' || field === 'installmentIdList'"
+      >
+        <project-installment-search
+          v-model="data[field]"
+          v-bind="{ field, data }"
+          @installment-change="val => handleInstallmentChange(val, data)"
+          @project-change="handleProjectChange(data)"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import TableCommon from '@/components/TableCommon/index.vue'
+import ProjectInstallmentSearch from '@/components/ProjectInstallmentSearch/index.vue'
+
+const handleInstallmentChange = (value, data) => {
+  console.log('分期选择变化:', value)
+  // 根据分期选择更新其他查询条件
+}
+
+const handleProjectChange = data => {
+  console.log('项目选择变化，当前查询数据:', data)
+  // 项目变化时，分期会自动清空（组件内部处理）
+}
+</script>
+```
+
+### 4.7 注意事项
+
+1. **字段名限制**: `field` 必须是 `'projectIdList'` 或 `'installmentIdList'`
+2. **级联关系**: 选择项目后，分期选项会自动更新为选中项目的子项
+3. **数据清空**: 项目选择变化时，分期选择会自动清空
+4. **数据绑定**: 组件通过 `useAttrs` 自动绑定到 `data[field]`，无需手动绑定
+5. **多选支持**: 支持多选项目和多选分期
+6. **数据缓存**: 组件会自动缓存项目分期数据
+
+### 4.8 完整示例
+
+```vue
+<template>
+  <div class="page-container">
+    <TableCommon ref="tableRef" :list-data="listData" :methods="tableMethods">
+      <template #formSlot="{ data, field }">
+        <!-- 项目分期搜索组件 -->
+        <template
+          v-if="field === 'projectIdList' || field === 'installmentIdList'"
+        >
+          <project-installment-search
+            v-model="data[field]"
+            v-bind="{ field, data }"
+            @installment-change="val => handleInstallmentChange(val, data)"
+            @project-change="handleProjectChange(data)"
+          />
+        </template>
+      </template>
+    </TableCommon>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import ProjectInstallmentSearch from '@/components/ProjectInstallmentSearch/index.vue'
+import { listData } from './listData'
+
+const tableRef = ref(null)
+
+const tableMethods = {
+  // 表格操作方法
+}
+
+const handleInstallmentChange = (value, data) => {
+  console.log('分期选择:', value)
+}
+
+const handleProjectChange = data => {
+  console.log('项目选择变化，当前查询数据:', data)
+}
+</script>
+```
+
+---
+
+## 5. Card 卡片容器组件
+
+`Card` 是一个简单的卡片容器组件，用于在弹窗中分组展示内容，提供标题和内容插槽。
+
+### 5.1 组件特性
+
+- ✅ **简单轻量**: 极简的卡片容器，无额外依赖
+- ✅ **插槽支持**: 支持 `title`、`titleBar`、`content` 插槽
+- ✅ **属性透传**: 支持 `v-bind="$attrs"` 传递所有属性
+- ✅ **样式统一**: 统一的卡片样式和间距
+
+### 5.2 组件插槽
+
+| 插槽名     | 说明                     |
+| ---------- | ------------------------ |
+| `title`    | 卡片标题内容             |
+| `titleBar` | 标题栏右侧内容（如按钮） |
+| `content`  | 卡片主体内容             |
+
+### 5.3 基础使用示例
+
+#### 5.3.1 基础卡片
+
+```vue
+<template>
+  <Card>
+    <template #title>基本信息</template>
+    <template #content>
+      <el-form :model="formData">
+        <!-- 表单内容 -->
+      </el-form>
+    </template>
+  </Card>
+</template>
+
+<script setup>
+import Card from '@/components/Card/index.vue'
+</script>
+```
+
+#### 5.3.2 带标题栏按钮的卡片
+
+```vue
+<template>
+  <Card>
+    <template #title>收款明细</template>
+    <template #titleBar>
+      <el-button type="primary" @click="handleAdd">新增</el-button>
+    </template>
+    <template #content>
+      <el-table :data="tableData">
+        <!-- 表格内容 -->
+      </el-table>
+    </template>
+  </Card>
+</template>
+
+<script setup>
+import Card from '@/components/Card/index.vue'
+</script>
+```
+
+#### 5.3.3 在弹窗中使用多个卡片
+
+```vue
+<template>
+  <el-dialog v-model="visible" title="编辑信息">
+    <!-- 基本信息卡片 -->
+    <Card>
+      <template #title>基本信息</template>
+      <template #content>
+        <el-form :model="formData">
+          <!-- 表单字段 -->
+        </el-form>
+      </template>
+    </Card>
+
+    <!-- 详细信息卡片 -->
+    <Card>
+      <template #title>详细信息</template>
+      <template #content>
+        <el-form :model="formData">
+          <!-- 表单字段 -->
+        </el-form>
+      </template>
+    </Card>
+
+    <!-- 条件显示的卡片 -->
+    <Card v-if="status === 'view'">
+      <template #title>审核记录</template>
+      <template #content>
+        <ApprovalRecord :proc-id="formData.procId" />
+      </template>
+    </Card>
+  </el-dialog>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import Card from '@/components/Card/index.vue'
+import ApprovalRecord from '@/components/ApprovalRecord/index.vue'
+
+const visible = ref(false)
+const status = ref('edit')
+const formData = ref({})
+</script>
+```
+
+### 5.4 完整示例
+
+```vue
+<template>
+  <el-dialog
+    v-model="visible"
+    :title="dialogTitle"
+    :width="MODAL_CONFIG['pro']"
+    destroy-on-close
+    append-to-body
+  >
+    <!-- 一、基本信息 -->
+    <Card>
+      <template #title>基本信息</template>
+      <template #content>
+        <el-form
+          ref="formRef"
+          v-bind="FORM_CONFIG.defaultConfig"
+          :model="formData"
+          :rules="rules"
+          :disabled="status === 'view'"
+        >
+          <el-row :gutter="16">
+            <el-col v-bind="LAYOUT_CONFIG.colSpan">
+              <el-form-item label="字段1" prop="field1">
+                <el-input v-model="formData.field1" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-form>
+      </template>
+    </Card>
+
+    <!-- 二、详细信息 -->
+    <Card>
+      <template #title>详细信息</template>
+      <template #content>
+        <el-form ref="detailFormRef" :model="formData" :rules="detailRules">
+          <el-table :data="formData.detailList">
+            <!-- 表格列 -->
+          </el-table>
+        </el-form>
+      </template>
+    </Card>
+
+    <!-- 三、审核记录（仅查看模式显示） -->
+    <Card v-if="status === 'view'">
+      <template #title>审核记录</template>
+      <template #content>
+        <ApprovalRecord :proc-id="formData.procId" />
+      </template>
+    </Card>
+
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="handleClose">取消</el-button>
+        <el-button
+          v-if="status !== 'view'"
+          type="primary"
+          @click="handleSubmit"
+        >
+          保存
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup>
+import { ref, reactive } from 'vue'
+import { useStyleConfig } from '@/hooks/useStyleConfig'
+import Card from '@/components/Card/index.vue'
+import ApprovalRecord from '@/components/ApprovalRecord/index.vue'
+
+const { MODAL_CONFIG, FORM_CONFIG, LAYOUT_CONFIG } = useStyleConfig()
+
+const visible = ref(false)
+const status = ref('edit')
+const formData = reactive({
+  field1: '',
+  detailList: [],
+  procId: ''
+})
+
+const rules = {
+  field1: [{ required: true, message: '请输入字段1', trigger: 'blur' }]
+}
+</script>
+```
+
+### 5.5 注意事项
+
+1. **样式统一**: 组件提供统一的卡片样式和间距（`margin-bottom: 9px`）
+2. **属性透传**: 支持通过 `v-bind="$attrs"` 传递所有 HTML 属性
+3. **插槽使用**: `title` 和 `content` 是常用插槽，`titleBar` 用于在标题栏右侧添加内容
+4. **使用场景**: 主要用于 `el-dialog` 中分组展示内容，提升页面可读性
+
+---
+
+## 6. NumberRange 数字范围输入组件
+
+`NumberRange` 是一个用于输入数字范围的组件，包含开始值和结束值两个输入框，支持自动校验范围关系。
+
+### 6.1 组件特性
+
+- ✅ **双向绑定**: 支持 `v-model:start` 和 `v-model:end` 双向数据绑定
+- ✅ **自动校验**: 自动校验最小值不能大于最大值，最大值不能小于最小值
+- ✅ **自动调整**: 当输入的最小值大于最大值时，自动调整最大值为最小值；反之亦然
+- ✅ **灵活配置**: 支持通过 `startProps` 和 `endProps` 自定义输入框属性
+- ✅ **空值处理**: 支持 `null` 和 `undefined`，显示为空输入框
+- ✅ **重置方法**: 提供 `reset` 方法用于重置组件值
+
+### 6.2 组件 Props
+
+| 属性名       | 类型     | 默认值                                                                                 | 说明                   |
+| ------------ | -------- | -------------------------------------------------------------------------------------- | ---------------------- |
+| `start`      | `Number` | `0`                                                                                    | 开始值（最小值）       |
+| `end`        | `Number` | `0`                                                                                    | 结束值（最大值）       |
+| `startProps` | `Object` | `{ min: 0, max: 1000000000, step: 100, precision: 0, align: 'left', controls: false }` | 开始值输入框的属性配置 |
+| `endProps`   | `Object` | `{ min: 0, max: 1000000000, step: 100, precision: 0, align: 'left', controls: false }` | 结束值输入框的属性配置 |
+
+### 6.3 组件事件
+
+| 事件名         | 参数    | 说明             |
+| -------------- | ------- | ---------------- |
+| `update:start` | `value` | 开始值变化时触发 |
+| `update:end`   | `value` | 结束值变化时触发 |
+
+### 6.4 组件方法
+
+| 方法名  | 说明                             |
+| ------- | -------------------------------- |
+| `reset` | 重置开始值和结束值为 `undefined` |
+
+### 6.5 基础使用示例
+
+#### 6.5.1 在 TableCommon 中使用（推荐）
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #formSlot="{ data, field }">
+      <!-- 面积区间 -->
+      <template v-if="field == 'areaRange'">
+        <NumberRange
+          ref="areaRangeRef"
+          v-model:start="data.constructionAreaMin"
+          v-model:end="data.constructionAreaMax"
+        />
+      </template>
+      <!-- 总价区间 -->
+      <template v-if="field == 'priceRange'">
+        <NumberRange
+          ref="priceRangeRef"
+          v-model:start="data.transactionPriceMin"
+          v-model:end="data.transactionPriceMax"
+        />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import NumberRange from '@/components/NumberRange/index.vue'
+
+const areaRangeRef = ref(null)
+const priceRangeRef = ref(null)
+
+// 重置范围
+const resetAreaRange = () => {
+  areaRangeRef.value?.reset()
+}
+</script>
+```
+
+#### 6.5.2 在表单中使用
+
+```vue
+<template>
+  <el-form :model="formData">
+    <el-form-item label="价格区间">
+      <NumberRange
+        v-model:start="formData.minPrice"
+        v-model:end="formData.maxPrice"
+      />
+    </el-form-item>
+  </el-form>
+</template>
+
+<script setup>
+import { reactive } from 'vue'
+import NumberRange from '@/components/NumberRange/index.vue'
+
+const formData = reactive({
+  minPrice: null,
+  maxPrice: null
+})
+</script>
+```
+
+#### 6.5.3 自定义输入框属性
+
+```vue
+<template>
+  <NumberRange
+    v-model:start="formData.minPrice"
+    v-model:end="formData.maxPrice"
+    :start-props="{
+      min: 0,
+      max: 1000000,
+      step: 100,
+      precision: 2,
+      align: 'left',
+      controls: false
+    }"
+    :end-props="{
+      min: 0,
+      max: 1000000,
+      step: 100,
+      precision: 2,
+      align: 'left',
+      controls: false
+    }"
+  />
+</template>
+```
+
+### 6.6 listData.js 配置
+
+在 `listData.js` 中配置数字范围查询条件：
+
+```javascript
+// src/views/salesProcess/housing/listData.js
+export const listData = {
+  queryCondition: [
+    {
+      key: 'areaRange',
+      label: '面积区间',
+      controls: 'ElInputNumber',
+      type: 'numberRange', // 指定为数字范围类型
+      props: {
+        placeholder: '请输入',
+        clearable: true,
+        min: 0,
+        max: 1000000000,
+        step: 100,
+        precision: 2,
+        align: 'left',
+        controls: false
+      },
+      slots: { default: 'formSlot' },
+      fieldStartName: 'constructionAreaMin', // 开始值字段名
+      fieldEndName: 'constructionAreaMax' // 结束值字段名
+    }
+  ]
+}
+```
+
+### 6.7 注意事项
+
+1. **双向绑定**: 必须使用 `v-model:start` 和 `v-model:end`，不能使用 `v-model`
+2. **空值处理**: 组件支持 `null` 和 `undefined`，会显示为空输入框
+3. **自动校验**: 当输入的最小值大于最大值时，会自动调整最大值
+4. **字段映射**: 在 `listData.js` 中需要配置 `fieldStartName` 和 `fieldEndName` 来映射实际的字段名
+5. **重置方法**: 通过 `ref` 可以调用 `reset` 方法重置组件值
+6. **默认值**: 如果不需要默认值，建议初始化为 `null` 或 `undefined`
+
+**⚠️ 重要提醒：列表页重置查询时，必须配合 table 提供的 reset 方法对组件进行绑定值重置！**
+
+### 6.8 完整示例
+
+```vue
+<template>
+  <div class="page-container">
+    <TableCommon
+      ref="tableRef"
+      :list-data="listData"
+      :methods="tableMethods"
+      @reset="handleNumberReset"
+    >
+      <template #formSlot="{ data, field }">
+        <!-- 面积区间 -->
+        <template v-if="field == 'areaRange'">
+          <NumberRange
+            ref="areaRangeRef"
+            v-model:start="data.constructionAreaMin"
+            v-model:end="data.constructionAreaMax"
+          />
+        </template>
+        <!-- 总价区间 -->
+        <template v-if="field == 'priceRange'">
+          <NumberRange
+            ref="priceRangeRef"
+            v-model:start="data.transactionPriceMin"
+            v-model:end="data.transactionPriceMax"
+          />
+        </template>
+      </template>
+    </TableCommon>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import NumberRange from '@/components/NumberRange/index.vue'
+import { listData } from './listData'
+
+const tableRef = ref(null)
+const areaRangeRef = ref(null)
+const priceRangeRef = ref(null)
+
+const tableMethods = {
+  // 表格操作方法
+}
+
+// 重置查询条件（⚠️ 重要：必须配合 table 的 reset 方法使用）
+const handleReset = () => {
+  // 先重置组件绑定值
+  areaRangeRef.value?.reset()
+  priceRangeRef.value?.reset()
+  // 然后调用 table 的 reset 方法
+  tableRef.value?.reset()
+}
+</script>
+```
+
+---
+
+## 7. DictTag 字典标签组件
+
+`DictTag` 是一个用于显示字典值的标签组件，支持单个值和数组值，支持不同的标签样式。
+
+### 7.1 组件特性
+
+- ✅ **字典显示**: 根据字典选项和值显示对应的标签文本
+- ✅ **多值支持**: 支持单个值和数组值显示
+- ✅ **样式定制**: 支持通过 `elTagType` 和 `elTagClass` 自定义标签样式
+- ✅ **标签类型**: 支持普通文本和 Element Plus 标签样式
+- ✅ **自动匹配**: 自动匹配字典选项中的 `value` 和 `label`
+
+### 7.2 组件 Props
+
+| 属性名    | 类型                  | 默认值 | 说明                                                                            |
+| --------- | --------------------- | ------ | ------------------------------------------------------------------------------- |
+| `options` | `Array`               | `null` | 字典选项数组，格式：`[{ value: '', label: '', elTagType: '', elTagClass: '' }]` |
+| `value`   | `Number/String/Array` | `null` | 当前值（单个值或数组）                                                          |
+
+### 7.3 数据格式
+
+**options 数组格式：**
+
+```javascript
+;[
+  {
+    value: '1', // 字典值
+    label: '启用', // 字典标签
+    elTagType: 'success', // 标签类型（可选）：'default' | 'success' | 'warning' | 'danger' | 'info' | 'primary' | ''
+    elTagClass: '' // 自定义CSS类（可选）
+  },
+  {
+    value: '0',
+    label: '禁用',
+    elTagType: 'danger'
+  }
+]
+```
+
+**value 格式：**
+
+```javascript
+// 单个值
+'1' 或 1
+
+// 数组值
+['1', '0'] 或 [1, 0]
+```
+
+### 7.4 基础使用示例
+
+#### 7.4.1 在 TableCommon 中使用（推荐）
+
+```vue
+<template>
+  <TableCommon :list-data="listData" :methods="tableMethods">
+    <template #featureColumn="{ row, column }">
+      <!-- 状态字典 -->
+      <template v-if="column.field == 'status'">
+        <dict-tag :options="statusOptions" :value="row.status" />
+      </template>
+
+      <!-- 销售状态字典 -->
+      <template v-if="column.field == 'salesStatus'">
+        <dict-tag :options="saleStatusOptions" :value="row.salesStatus" />
+      </template>
+    </template>
+  </TableCommon>
+</template>
+
+<script setup>
+import { getCurrentInstance } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import DictTag from '@/components/DictTag/index.vue'
+
+const { proxy } = getCurrentInstance()
+
+// 使用字典Hook获取字典数据
+const { sale_status: saleStatusOptions, approval: statusOptions } =
+  proxy.useDict('sale_status', 'approval')
+</script>
+```
+
+#### 7.4.2 在 el-table 中使用
+
+```vue
+<template>
+  <el-table :data="tableData">
+    <el-table-column label="状态" width="100">
+      <template #default="{ row }">
+        <dict-tag :options="statusOptions" :value="row.status" />
+      </template>
+    </el-table-column>
+  </el-table>
+</template>
+
+<script setup>
+import { getCurrentInstance } from 'vue'
+import DictTag from '@/components/DictTag/index.vue'
+
+const { proxy } = getCurrentInstance()
+const { approval: statusOptions } = proxy.useDict('approval')
+</script>
+```
+
+#### 7.4.3 显示数组值
+
+```vue
+<template>
+  <dict-tag :options="typeOptions" :value="['1', '2']" />
+</template>
+
+<script setup>
+import { getCurrentInstance } from 'vue'
+import DictTag from '@/components/DictTag/index.vue'
+
+const { proxy } = getCurrentInstance()
+const { product_type: typeOptions } = proxy.useDict('product_type')
+</script>
+```
+
+### 7.5 字典数据获取
+
+项目中统一使用 `proxy.useDict()` 方法获取字典数据：
+
+```javascript
+import { getCurrentInstance } from 'vue'
+
+const { proxy } = getCurrentInstance()
+
+// 获取单个字典
+const { approval: statusOptions } = proxy.useDict('approval')
+
+// 获取多个字典
+const {
+  sale_status: saleStatusOptions,
+  approval: statusOptions,
+  product_type: typeOptions
+} = proxy.useDict('sale_status', 'approval', 'product_type')
+```
+
+### 7.6 listData.js 配置
+
+在 `listData.js` 中配置需要显示字典的列：
+
+```javascript
+// src/views/baseInfo/room/listData.js
+export const listData = {
+  columns: [
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      align: 'center',
+      slots: { default: 'featureColumn' } // 使用 featureColumn 插槽
+    },
+    {
+      title: '销售状态',
+      dataIndex: 'salesStatus',
+      width: 120,
+      align: 'center',
+      slots: { default: 'featureColumn' }
+    }
+  ]
+}
+```
+
+### 7.7 标签样式定制
+
+字典数据中可以配置 `elTagType` 和 `elTagClass` 来自定义标签样式：
+
+```javascript
+// 字典数据示例
+const statusOptions = [
+  {
+    value: '1',
+    label: '启用',
+    elTagType: 'success', // 成功样式（绿色）
+    elTagClass: '' // 自定义CSS类
+  },
+  {
+    value: '0',
+    label: '禁用',
+    elTagType: 'danger', // 危险样式（红色）
+    elTagClass: ''
+  },
+  {
+    value: '2',
+    label: '待审核',
+    elTagType: 'warning', // 警告样式（黄色）
+    elTagClass: ''
+  },
+  {
+    value: '3',
+    label: '普通',
+    elTagType: 'default', // 默认样式（灰色文本，无标签）
+    elTagClass: ''
+  }
+]
+```
+
+**elTagType 可选值：**
+
+- `'default'` 或 `''`: 普通文本，无标签样式
+- `'success'`: 成功样式（绿色标签）
+- `'warning'`: 警告样式（黄色标签）
+- `'danger'`: 危险样式（红色标签）
+- `'info'`: 信息样式（蓝色标签）
+- `'primary'`: 主要样式（蓝色标签）
+
+### 7.8 注意事项
+
+1. **字典数据格式**: `options` 必须是数组，且每个元素必须包含 `value` 和 `label` 字段
+2. **值匹配**: 组件的 `value` 会与 `options` 中的 `value` 进行匹配（字符串比较）
+3. **多值显示**: 当 `value` 是数组时，会显示所有匹配的标签
+4. **字典获取**: 统一使用 `proxy.useDict()` 方法获取字典数据，不要直接导入字典 Hook
+5. **插槽使用**: 在 TableCommon 中使用时，必须在 `listData.js` 中配置 `slots: { default: 'featureColumn' }`
+6. **样式定制**: 通过字典数据中的 `elTagType` 和 `elTagClass` 字段自定义标签样式
+
+### 7.9 完整示例
+
+```vue
+<template>
+  <div class="page-container">
+    <TableCommon ref="tableRef" :list-data="listData" :methods="tableMethods">
+      <template #featureColumn="{ row, column }">
+        <!-- 面积状态 -->
+        <template v-if="column.field == 'areaStatus'">
+          <dict-tag :options="saleAreaStatusOptions" :value="row.areaStatus" />
+        </template>
+
+        <!-- 销售状态 -->
+        <template v-if="column.field == 'salesStatus'">
+          <dict-tag :options="saleStatusOptions" :value="row.salesStatus" />
+        </template>
+
+        <!-- 审批状态 -->
+        <template v-if="column.field == 'status'">
+          <dict-tag :options="approvalOptions" :value="row.status" />
+        </template>
+
+        <!-- 产品类型 -->
+        <template v-if="column.field == 'productType'">
+          <dict-tag :options="productTypeOptions" :value="row.productType" />
+        </template>
+      </template>
+    </TableCommon>
+  </div>
+</template>
+
+<script setup>
+import { ref, getCurrentInstance } from 'vue'
+import TableCommon from '@/components/TableCommon/index.vue'
+import DictTag from '@/components/DictTag/index.vue'
+import { listData } from './listData'
+
+const { proxy } = getCurrentInstance()
+const tableRef = ref(null)
+
+// 获取字典数据
+const {
+  sale_area_status: saleAreaStatusOptions,
+  sales_status: saleStatusOptions,
+  approval: approvalOptions,
+  product_type: productTypeOptions
+} = proxy.useDict(
+  'sale_area_status',
+  'sales_status',
+  'approval',
+  'product_type'
+)
+
+const tableMethods = {
+  // 表格操作方法
+}
+</script>
+```
+
+---
+
+## 8. 其他组件使用规范
+
+（后续添加其他组件的使用规范...）

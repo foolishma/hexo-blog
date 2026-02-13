@@ -1,0 +1,310 @@
+---
+globs: 
+  - "src/views/**/components/**/*.vue"
+  - "src/views/**/*.vue"
+alwaysApply: false
+description: Vue 3 局部小组件拆分与使用规范
+keywords: ["组件拆分", "局部组件", "小组件", "组件重构"]
+tags: ["组件", "拆分", "重构"]
+size: small
+---
+
+# Vue 3 局部小组件拆分与使用规范
+
+## 🎯 组件拆分原则
+
+### 1. 功能模块化拆分
+- **单一职责**：每个子组件只负责一个功能模块
+- **数据隔离**：子组件管理自己的数据状态
+- **接口清晰**：通过 props 和 emits 定义清晰的组件接口
+
+### 2. 组件层次结构
+```
+Modal (父组件)
+├── Card (容器组件)
+│   ├── BaseInfo (基础信息子组件)
+│   └── RoomList (房间列表子组件)
+└── Footer (操作按钮区域)
+```
+
+## 📋 Card 容器组件使用规范
+
+### 基础用法
+```vue
+<template>
+  <Card>
+    <template #title>模块标题</template>
+    <template #content>
+      <!-- 子组件内容 -->
+      <ChildComponent 
+        :edit-data="editData"
+        :status="status"
+        @update:form-data="handleFormDataUpdate"
+      />
+    </template>
+  </Card>
+</template>
+```
+
+### Card 组件特性
+- **插槽设计**：使用 `title` 和 `content` 插槽
+- **统一样式**：提供一致的卡片样式和间距
+- **无状态**：纯展示容器，不包含业务逻辑
+
+## 🔄 子组件传值规范
+
+### 1. Props 传值模式
+```vue
+<script setup>
+// 子组件接收 props
+const props = defineProps({
+  editData: {
+    type: Object,
+    default: () => ({})
+  },
+  status: {
+    type: String,
+    default: 'add'
+  },
+  options: {
+    type: Array,
+    default: () => []
+  }
+})
+</script>
+```
+
+### 2. 事件通信模式
+```vue
+<script setup>
+// 子组件定义 emits
+const emit = defineEmits(['update:formData', 'change', 'success'])
+
+// 触发事件
+const handleDataChange = (data) => {
+  emit('update:formData', data)
+}
+</script>
+```
+
+### 3. 父组件监听
+```vue
+<template>
+  <ChildComponent 
+    @update:form-data="handleFormDataUpdate"
+    @change="handleChange"
+  />
+</template>
+
+<script setup>
+const handleFormDataUpdate = (formData) => {
+  currentFormData.value = formData
+}
+</script>
+```
+
+## ✅ 子组件校验规范
+
+### 1. 表单校验方法
+```vue
+<script setup>
+// 子组件暴露校验方法
+const onSubmit = async (isValidate = false) => {
+  return new Promise(resolve => {
+    if (!isValidate) {
+      return resolve(formData)
+    }
+
+    formRef.value.validate(valid => {
+      if (valid) {
+        resolve(formData)
+      } else {
+        resolve(false)
+      }
+    })
+  })
+}
+
+// 暴露方法给父组件
+defineExpose({
+  onSubmit,
+  setFormState,
+  getData
+})
+</script>
+```
+
+### 2. 父组件统一校验
+```vue
+<script setup>
+const onSubmit = async () => {
+  try {
+    // 并行校验所有子组件
+    const [baseInfoData, roomListData] = await Promise.all([
+      baseInfoRef.value.onSubmit(true),
+      roomListRef.value.onSubmit(true)
+    ])
+
+    // 校验闸口
+    if (!baseInfoData || !roomListData) {
+      proxy.$modal.msgError('表单验证失败，请检查必填项')
+      return
+    }
+
+    // 合并数据并提交
+    const mergedData = {
+      ...baseInfoData,
+      roomList: roomListData
+    }
+    
+    await saveData(mergedData)
+  } catch (error) {
+    proxy.$modal.msgError('请检查表单信息')
+  }
+}
+</script>
+```
+
+## 🎨 样式配置规范
+
+### 1. 使用 useStyleConfig Hook
+```vue
+<script setup>
+import { useStyleConfig } from '@/hooks/useStyleConfig'
+
+const { LAYOUT_CONFIG, FORM_CONFIG, MODAL_CONFIG } = useStyleConfig()
+</script>
+
+<template>
+  <!-- 使用配置 -->
+  <el-form v-bind="FORM_CONFIG.defaultConfig">
+    <el-row :gutter="16">
+      <el-col v-bind="LAYOUT_CONFIG.colSpan">
+        <!-- 表单项 -->
+      </el-col>
+    </el-row>
+  </el-form>
+</template>
+```
+
+### 2. 响应式布局配置
+```javascript
+// LAYOUT_CONFIG.colSpan 配置
+{
+  span: 12,    // 默认列宽
+  xs: 24,      // 超小屏幕
+  sm: 24,      // 小屏幕  
+  md: 12,      // 中等屏幕
+  lg: 12,      // 大屏幕
+  xl: 12       // 超大屏幕
+}
+```
+
+## 🔧 组件生命周期管理
+
+### 1. 数据初始化
+```vue
+<script setup>
+import { watch, onUnmounted } from 'vue'
+
+// 监听 props 变化，初始化数据
+watch(
+  [() => visible.value, () => props.editData?.id],
+  () => {
+    if (visible.value && props.editData?.id) {
+      fetchDetail()
+    }
+  },
+  { immediate: true }
+)
+
+// 清理监听器
+onUnmounted(() => {
+  startWatch()
+})
+</script>
+```
+
+### 2. 数据设置方法
+```vue
+<script setup>
+// 子组件提供数据设置方法
+const setFormState = (data) => {
+  if (data) {
+    Object.assign(formData, {
+      ...data,
+      // 处理默认值
+      id: data.id || '',
+      name: data.name || ''
+    })
+  }
+}
+
+defineExpose({
+  setFormState
+})
+</script>
+```
+
+## 📝 最佳实践
+
+### 1. 组件命名规范
+- **功能导向**：`BaseInfo.vue`、`RoomList.vue`
+- **语义清晰**：组件名能直接表达功能
+- **统一后缀**：子组件使用功能名 + `.vue`
+
+### 2. 文件结构规范
+```
+components/
+├── modal.vue          # 主模态框组件
+├── baseInfo.vue       # 基础信息子组件
+├── roomList.vue       # 房间列表子组件
+└── roomSelectionModal.vue  # 房间选择模态框
+```
+
+### 3. 状态管理规范
+- **本地状态**：子组件管理自己的表单数据
+- **状态同步**：通过事件向父组件同步数据
+- **状态重置**：提供重置方法清理组件状态
+
+### 4. 错误处理规范
+```vue
+<script setup>
+const onSubmit = async () => {
+  try {
+    const result = await validateAndSubmit()
+    if (result) {
+      proxy.$modal.msgSuccess('操作成功')
+      emit('success')
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    proxy.$modal.msgError('操作失败，请重试')
+  }
+}
+</script>
+```
+
+## 🚀 使用提示
+
+### 手动调用规则
+在需要创建复杂表单或模态框时，使用 `@vue-component-split-patterns` 规则：
+
+1. **拆分组件**：将复杂表单拆分为多个功能子组件
+2. **使用 Card**：用 Card 组件包装每个功能模块
+3. **统一校验**：在父组件中统一处理所有子组件的校验
+4. **数据传递**：通过 props 和 events 进行组件间通信
+5. **样式配置**：使用 useStyleConfig 保持样式一致性
+
+### 适用场景
+- ✅ 复杂表单模态框
+- ✅ 多步骤表单
+- ✅ 包含多个功能模块的页面
+- ✅ 需要独立校验的组件组合
+- ✅ 可复用的表单组件
+
+### 注意事项
+- 🔴 子组件必须提供 `onSubmit` 校验方法
+- 🔴 父组件必须处理所有子组件的校验结果
+- 🔴 使用 `defineExpose` 暴露必要的方法
+- 🔴 保持组件间的数据流清晰明确

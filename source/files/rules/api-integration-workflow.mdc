@@ -1,0 +1,615 @@
+---
+globs:
+  - "src/api/**/*.js"
+  - "src/views/**/listData.js"
+  - "src/views/**/*.vue"
+alwaysApply: false
+description: 接口联调工作流规范 - 严格按照 Apifox 文档进行字段对接
+keywords: ["接口联调", "字段对接", "apifox", "接口文档", "字段修改", "字段映射"]
+tags: ["接口", "工作流", "对接规范"]
+size: medium
+trigger: manual
+---
+
+/*
+ * @Date: 2026-02-06 11:50:25
+ * @Author: m xy
+ */
+
+# 接口联调工作流规范
+
+## 📋 工作流概述
+
+当开发者提供 Apifox 文档信息进行接口联调时，必须严格按照本工作流规范执行字段对接工作。
+
+**核心原则**：
+- ✅ **只修改字段 key**：仅修改现有字段的字段名/字段key
+- ❌ **禁止新增字段**：不能添加页面中未定义的字段
+- ❌ **禁止删除字段**：不能删除页面中已存在的字段
+- ❌ **禁止字段映射**：拒绝任何字段映射逻辑（除非特殊情况）
+- ✅ **直接传参**：用户填写完表单，调接口可直接传参，无需转换
+
+---
+
+## 🔄 完整工作流程
+
+### 阶段一：信息收集与分析
+
+#### 1.1 接收开发者提供的信息
+
+开发者可能提供以下信息（**未必全部提供**）：
+
+- ✅ Apifox 文档地址
+- ✅ 接口路径
+- ✅ 接口入参（请求参数结构）
+- ✅ 接口返回的数据结构（响应数据结构）
+
+**处理原则**：
+- 如果信息不完整，优先通过 `apifox-mcp-server` 工具查询完整文档
+- 如果无法通过工具查询，直接使用开发者提供的信息
+- 确保获取到**接口入参**和**接口返回**的完整字段定义
+
+#### 1.2 确定需要修改的模块
+
+**开发者提供信息**：
+- 开发者可能提供**模块的文件夹路径**（例如：`src/views/salesProcess/housing`）
+
+**修改范围确定**：
+- ⚠️ **重要**：修改范围是**该目录下的所有文件**
+- 需要全面排查该模块目录下的所有相关文件
+
+**需要修改的文件类型**：
+
+1. **列表页文件**：
+   - `{模块路径}/index.vue` - 列表页主文件
+   - `{模块路径}/listData.js` - 列表配置文件
+
+2. **组件文件**：
+   - `{模块路径}/components/**/*.vue` - 所有子组件文件
+   - 包括弹窗组件、表单组件、详情组件等
+
+3. **API 文件**：
+   - `src/api/{模块路径}/**/*.js` - 对应的 API 接口文件
+   - 需要根据模块路径找到对应的 API 目录
+
+4. **其他相关文件**：
+   - 该目录下所有 `.vue` 文件
+   - 该目录下所有 `.js` 文件（配置文件、工具文件等）
+
+**执行原则**：
+- ✅ **全面排查**：必须检查目录下的所有文件
+- ✅ **不遗漏**：确保所有涉及字段绑定的文件都被修改
+- ✅ **保持结构**：只修改字段名，不改变文件结构
+
+#### 1.3 分析接口文档字段
+
+**关键分析点**：
+
+1. **接口入参字段**（用于表单提交）
+   - 提取所有入参字段名
+   - 记录字段类型和必填要求
+   - 注意嵌套对象结构
+
+2. **接口返回字段**（用于列表展示）
+   - 提取列表接口返回的字段名
+   - 提取详情接口返回的字段名
+   - 注意字段层级关系
+
+---
+
+### 阶段二：字段修改执行
+
+#### 2.1 修改 listData.js 配置文件
+
+**修改范围**：
+
+1. **列配置（columns）- 表头项**：
+   - 根据 `title` 在**列表页接口返回的字段信息**中进行匹配
+   - **仅修改** `dataIndex` 的值，保持其他配置不变
+   - ⚠️ **严格保护原则**：
+     - ❌ **禁止删除**任何表头项（列配置项）
+     - ❌ **禁止新增**任何表头项（列配置项）
+     - ✅ **只能修改**现有表头项的 `dataIndex` 字段名
+     - ✅ 必须保持所有表头项的数量和结构完全不变
+
+2. **查询条件配置（queryCondition）- 筛选项**：
+   - 根据 `label` 在**列表页接口返回的字段信息**中进行匹配
+   - **仅修改** `key` 的值，保持其他配置不变
+   - ⚠️ **严格保护原则**：
+     - ❌ **禁止删除**任何筛选项（查询条件配置项）
+     - ❌ **禁止新增**任何筛选项（查询条件配置项）
+     - ✅ **只能修改**现有筛选项的 `key` 字段名
+     - ✅ 必须保持所有筛选项的数量和结构完全不变
+
+**修改示例**：
+
+```javascript
+// ✅ 正确方式 - 只修改 dataIndex，保持其他配置不变
+{
+  title: '项目名称',           // 保持 title 不变
+  dataIndex: 'projectName',    // 只修改 dataIndex 映射到接口字段
+  minWidth: 150,              // 保持 minWidth 不变
+  resizable: true,            // 保持 resizable 不变
+  showOverflow: true,         // 保持 showOverflow 不变
+  align: 'left'               // 保持 align 不变
+}
+
+// ❌ 错误方式 - 删减配置项
+{
+  title: '项目名称',
+  dataIndex: 'projectName'
+  // 删除了 minWidth、resizable 等配置
+}
+
+// ❌ 错误方式 - 添加新配置项
+{
+  title: '项目名称',
+  dataIndex: 'projectName',
+  minWidth: 150,
+  resizable: true,
+  showOverflow: true,
+  align: 'left',
+  newProperty: 'value'  // 禁止添加新属性
+}
+```
+
+#### 2.2 修改表单组件（CURD 弹窗组件）
+
+**修改范围**：
+
+1. **表单项字段绑定**：
+   - 根据 `el-form-item` 的 `label` 名在**详情页接口返回的字段信息**中进行匹配
+   - 修改 `v-model` 绑定的字段名
+   - 修改 `formData` 中定义的字段
+   - 修改相关逻辑中字段的使用
+
+2. **表单初始化**：
+   - 修改 `formData` 对象的字段定义
+   - 确保字段名与接口入参完全一致
+
+**修改示例**：
+
+```vue
+<!-- ✅ 正确方式 - 只修改 v-model 值，保持字段结构 -->
+<el-form-item label="用户名称" prop="userName">
+  <el-input v-model="formData.userName" clearable />
+</el-form-item>
+
+<!-- ❌ 错误方式 - 不要添加新字段 -->
+<el-form-item label="新增字段" prop="newField">
+  <el-input v-model="formData.newField" />
+</el-form-item>
+
+<!-- ❌ 错误方式 - 不要删除现有字段 -->
+<!-- 不要删除任何现有的 el-form-item -->
+```
+
+```javascript
+// ✅ 正确方式 - 只修改字段名，保持结构
+const formData = ref({
+  userName: '',      // 修改字段名，保持字段存在
+  userEmail: '',     // 修改字段名，保持字段存在
+  userStatus: ''     // 修改字段名，保持字段存在
+})
+
+// ❌ 错误方式 - 不要添加新字段
+const formData = ref({
+  userName: '',
+  userEmail: '',
+  userStatus: '',
+  newField: ''  // 禁止添加新字段
+})
+
+// ❌ 错误方式 - 不要删除现有字段
+const formData = ref({
+  userName: ''
+  // 删除了 userEmail、userStatus 等字段
+})
+```
+
+#### 2.3 修改 el-table 组件
+
+**修改范围**：
+
+- 根据 `el-table-column` 的 `label` 值去详情接口匹配对应的字段
+- 修改 `prop` 绑定的值
+- 保持表格列结构不变
+
+**修改示例**：
+
+```vue
+<!-- ✅ 正确方式 - 只修改 prop 值 -->
+<el-table-column label="项目名称" prop="projectName" />
+<el-table-column label="项目状态" prop="projectStatus" />
+
+<!-- ❌ 错误方式 - 不要添加新列 -->
+<el-table-column label="新增列" prop="newColumn" />
+
+<!-- ❌ 错误方式 - 不要删除现有列 -->
+<!-- 不要删除任何现有的 el-table-column -->
+```
+
+#### 2.4 修改 API 文件
+
+**修改范围**：
+
+1. **接口路径**：
+   - 根据开发者提供的接口路径更新 `url`
+
+2. **参数传递**：
+   - 确保直接传递 `formData` 或查询参数，无需字段映射转换
+   - 禁止在 API 调用中进行字段名转换
+
+**修改示例**：
+
+```javascript
+// ✅ 正确方式 - 直接传参，无需映射
+export function saveUserInfo(data) {
+  return request({
+    url: '/system/user/save',
+    method: 'post',
+    data  // 直接传递，字段名已与接口一致
+  })
+}
+
+// ❌ 错误方式 - 禁止字段映射
+export function saveUserInfo(data) {
+  return request({
+    url: '/system/user/save',
+    method: 'post',
+    data: {
+      userName: data.name,        // ❌ 禁止字段映射
+      userEmail: data.email,      // ❌ 禁止字段映射
+      userStatus: data.status     // ❌ 禁止字段映射
+    }
+  })
+}
+```
+
+---
+
+### 阶段三：全面排查与验证
+
+#### 3.1 文件范围排查
+
+**排查原则**：
+- ⚠️ **全面排查**：必须检查开发者提供的模块目录下的**所有文件**
+- ⚠️ **不遗漏**：确保目录下的每个文件都被检查到
+
+**必须检查的文件**：
+
+1. **列表页相关**：
+   - ✅ `{模块路径}/index.vue` - 列表页主文件
+   - ✅ `{模块路径}/listData.js` - 列表配置文件
+
+2. **组件文件**：
+   - ✅ `{模块路径}/components/**/*.vue` - 所有子组件文件
+   - ✅ `{模块路径}/*.vue` - 目录下所有 Vue 组件文件
+
+3. **配置文件**：
+   - ✅ `{模块路径}/*.js` - 目录下所有 JavaScript 配置文件
+   - ✅ `{模块路径}/**/*.js` - 目录下所有子目录的 JS 文件
+
+4. **API 文件**：
+   - ✅ `src/api/{模块路径}/**/*.js` - 对应的 API 接口文件
+   - 需要根据模块路径找到对应的 API 目录
+
+5. **其他文件**：
+   - ✅ 目录下所有可能包含字段绑定的文件
+   - ✅ 包括工具文件、常量文件等
+
+#### 3.2 字段绑定排查
+
+**检查清单**：
+
+1. **列表页字段**：
+   - [ ] `listData.js` 中所有 `dataIndex` 已更新
+   - [ ] `listData.js` 中所有查询条件 `key` 已更新
+   - [ ] 列表页插槽中使用的字段已更新
+
+2. **表单字段**：
+   - [ ] 所有 `v-model` 绑定的字段已更新
+   - [ ] `formData` 对象中所有字段已更新
+   - [ ] 表单验证规则中的字段已更新
+
+3. **表格字段**：
+   - [ ] `el-table-column` 的 `prop` 已更新
+   - [ ] 表格插槽中使用的字段已更新
+
+4. **API 调用**：
+   - [ ] 接口路径已更新
+   - [ ] 参数传递无字段映射逻辑
+   - [ ] 响应数据处理无字段映射逻辑
+
+#### 3.3 功能完整性验证
+
+**验证项**：
+
+- ✅ 所有原有字段都已修改为接口字段名
+- ✅ 没有新增任何字段
+- ✅ 没有删除任何字段
+- ✅ 表单提交时可直接传参，无需转换
+- ✅ 列表展示字段与接口返回字段一致
+
+---
+
+## 🚫 严格禁止行为
+
+### 禁止新增字段
+
+```javascript
+// ❌ 错误：添加接口文档中有但页面未定义的字段
+const formData = ref({
+  userName: '',
+  userEmail: '',
+  // 页面原本没有这个字段，禁止添加
+  userPhone: ''  // ❌ 禁止
+})
+```
+
+### 禁止删除字段
+
+```javascript
+// ❌ 错误：删除页面中已存在的字段
+const formData = ref({
+  userName: ''
+  // 页面原本有 userEmail，禁止删除
+  // userEmail: ''  // ❌ 禁止删除
+})
+```
+
+### 禁止删除 listData.js 中的筛选项和表头项
+
+**⚠️ 特别强调：listData.js 中的筛选项和表头项必须严格保护！**
+
+```javascript
+// ❌ 错误：删除 listData.js 中的表头项（列配置）
+export const listData = {
+  columns: [
+    {
+      title: '项目名称',
+      dataIndex: 'projectName'
+    }
+    // 页面原本有其他列配置，禁止删除
+    // {
+    //   title: '项目状态',
+    //   dataIndex: 'projectStatus'
+    // }  // ❌ 禁止删除表头项
+  ]
+}
+
+// ❌ 错误：删除 listData.js 中的筛选项（查询条件配置）
+export const listData = {
+  queryCondition: [
+    {
+      label: '项目名称',
+      key: 'projectName'
+    }
+    // 页面原本有其他查询条件，禁止删除
+    // {
+    //   label: '项目状态',
+    //   key: 'projectStatus'
+    // }  // ❌ 禁止删除筛选项
+  ]
+}
+
+// ✅ 正确方式 - 只修改字段名，保持所有配置项
+export const listData = {
+  columns: [
+    {
+      title: '项目名称',        // 保持 title 不变
+      dataIndex: 'projectName', // 只修改 dataIndex
+      minWidth: 150,           // 保持其他配置不变
+      resizable: true
+    },
+    {
+      title: '项目状态',        // 保持 title 不变
+      dataIndex: 'projectStatus', // 只修改 dataIndex
+      minWidth: 120,           // 保持其他配置不变
+      resizable: true
+    }
+    // ✅ 所有表头项都保留，只修改 dataIndex
+  ],
+  queryCondition: [
+    {
+      label: '项目名称',        // 保持 label 不变
+      key: 'projectName',      // 只修改 key
+      controls: 'el-input'     // 保持其他配置不变
+    },
+    {
+      label: '项目状态',        // 保持 label 不变
+      key: 'projectStatus',    // 只修改 key
+      controls: 'el-select'    // 保持其他配置不变
+    }
+    // ✅ 所有筛选项都保留，只修改 key
+  ]
+}
+```
+
+### 禁止字段映射
+
+```javascript
+// ❌ 错误：在 API 调用中进行字段映射
+export function saveUserInfo(data) {
+  const mappedData = {
+    userName: data.name,      // ❌ 禁止映射
+    userEmail: data.email,    // ❌ 禁止映射
+    userStatus: data.status   // ❌ 禁止映射
+  }
+  return request({
+    url: '/system/user/save',
+    method: 'post',
+    data: mappedData
+  })
+}
+
+// ❌ 错误：在表单提交时进行字段转换
+const handleSubmit = () => {
+  const submitData = {
+    userName: formData.value.name,     // ❌ 禁止转换
+    userEmail: formData.value.email    // ❌ 禁止转换
+  }
+  saveUserInfo(submitData)
+}
+```
+
+### 特殊情况处理
+
+**⚠️ 只有在以下特殊情况才允许字段映射**：
+
+1. **接口文档明确要求**：接口文档中明确说明需要特定字段名转换
+2. **业务逻辑必需**：某些业务场景必须进行字段转换（需 BOSS 明确批准）
+3. **历史兼容性**：为了兼容历史数据必须进行转换（需 BOSS 明确批准）
+
+**特殊情况处理流程**：
+
+1. 通过寸止 MCP 向 BOSS 确认是否允许字段映射
+2. 如果批准，**字段映射应该在调用接口前，通过特定函数单独处理出最终要上传的结构**
+3. 接口封装函数必须保持直接传参，不进行任何字段映射转换
+4. 在代码中添加详细注释说明映射原因和映射函数位置
+
+**⚠️ 重要原则**：
+- ❌ **禁止在接口封装函数中进行字段映射**
+- ✅ **字段映射必须在调用接口前，通过特定函数单独处理**
+- ✅ **接口封装函数保持直接传参，接收已处理好的数据结构**
+
+```javascript
+// ✅ 正确方式 - 字段映射在调用接口前通过特定函数处理
+/**
+ * 字段映射函数：将表单数据转换为接口所需的数据结构
+ * @param {Object} formData - 表单数据
+ * @returns {Object} 转换后的接口数据结构
+ */
+function transformFormDataToApiData(formData) {
+  return {
+    // 映射原因：接口文档明确要求使用 userName 而非 name
+    userName: formData.name,      // 映射：name -> userName
+    userEmail: formData.email,    // 映射：email -> userEmail
+    userStatus: formData.status    // 映射：status -> userStatus
+  }
+}
+
+// ✅ 正确方式 - 接口封装函数保持直接传参，不进行映射
+export function saveUserInfo(data) {
+  return request({
+    url: '/system/user/save',
+    method: 'post',
+    data  // 直接传递，data 已在调用前通过 transformFormDataToApiData 处理
+  })
+}
+
+// ✅ 正确方式 - 在调用接口前进行字段映射处理
+const handleSubmit = async () => {
+  // 在调用接口前，通过特定函数处理字段映射
+  const apiData = transformFormDataToApiData(formData.value)
+  
+  // 调用接口，直接传递已处理好的数据
+  await saveUserInfo(apiData)
+}
+
+// ❌ 错误方式 - 禁止在接口封装函数中进行字段映射
+export function saveUserInfo(data) {
+  return request({
+    url: '/system/user/save',
+    method: 'post',
+    data: {
+      userName: data.name,      // ❌ 禁止在接口封装中进行映射
+      userEmail: data.email,    // ❌ 禁止在接口封装中进行映射
+      userStatus: data.status   // ❌ 禁止在接口封装中进行映射
+    }
+  })
+}
+```
+
+---
+
+## 📝 工作流执行检查清单
+
+### 执行前检查
+
+- [ ] 已获取完整的接口文档信息（入参 + 返回）
+- [ ] 已确定需要修改的模块路径
+- [ ] 已列出所有需要修改的文件清单
+
+### 执行中检查
+
+- [ ] `listData.js` 中 `dataIndex` 已全部更新
+- [ ] `listData.js` 中查询条件 `key` 已全部更新
+- [ ] ⚠️ **确认所有表头项（columns）未被删除**（数量保持一致）
+- [ ] ⚠️ **确认所有筛选项（queryCondition）未被删除**（数量保持一致）
+- [ ] 表单组件中所有 `v-model` 已更新
+- [ ] `formData` 对象中所有字段已更新
+- [ ] `el-table-column` 的 `prop` 已更新
+- [ ] API 文件中的接口路径已更新
+- [ ] API 调用中无字段映射逻辑
+
+### 执行后验证
+
+- [ ] 所有字段名与接口文档完全一致
+- [ ] 没有新增任何字段
+- [ ] 没有删除任何字段
+- [ ] ⚠️ **确认 listData.js 中所有表头项（columns）数量未变化**
+- [ ] ⚠️ **确认 listData.js 中所有筛选项（queryCondition）数量未变化**
+- [ ] 表单提交可直接传参
+- [ ] 列表展示字段正确
+- [ ] 功能完整性已验证
+
+---
+
+## 🎯 核心原则总结
+
+### 三不原则
+
+1. **不新增**：不添加页面中未定义的字段
+2. **不删除**：不删除页面中已存在的字段
+3. **不映射**：不进行字段名映射转换（特殊情况除外）
+
+### 一修改原则
+
+- **只修改字段 key**：仅修改现有字段的字段名/字段key，使其与接口文档完全一致
+
+### 直接传参原则
+
+- **表单数据直接传参**：用户填写完表单后，`formData` 可以直接作为接口参数传递，无需任何转换
+
+### ⚠️ listData.js 特别保护原则
+
+**严格保护筛选项和表头项**：
+
+1. **表头项（columns）保护**：
+   - ❌ **禁止删除**任何表头项（列配置项）
+   - ❌ **禁止新增**任何表头项（列配置项）
+   - ✅ **只能修改**现有表头项的 `dataIndex` 字段名
+   - ✅ 必须保持所有表头项的数量和结构完全不变
+
+2. **筛选项（queryCondition）保护**：
+   - ❌ **禁止删除**任何筛选项（查询条件配置项）
+   - ❌ **禁止新增**任何筛选项（查询条件配置项）
+   - ✅ **只能修改**现有筛选项的 `key` 字段名
+   - ✅ 必须保持所有筛选项的数量和结构完全不变
+
+**保护原则优先级**：筛选项和表头项的保护优先级最高，必须严格遵守！
+
+---
+
+## 📚 相关规范文件
+
+- [api-fox-patterns.mdc](./api-fox-patterns.mdc) - Apifox API 开发规范
+- [TableCommon-项目规则.mdc](./TableCommon-项目规则.mdc) - TableCommon 列表页组件使用规范
+- [global-development-standards.mdc](./global-development-standards.mdc) - 全局开发规范
+
+---
+
+## ⚠️ 重要提醒
+
+1. **严格遵循工作流**：必须按照本工作流规范执行，不得跳过任何步骤
+2. **保护现有功能**：修改字段时不得影响现有功能逻辑
+3. **完整验证**：修改完成后必须进行全面验证，确保功能正常
+4. **文档一致性**：确保所有字段名与接口文档完全一致
+5. **特殊情况审批**：如需字段映射，必须通过寸止 MCP 向 BOSS 确认
+
+---
+
+**工作流版本**：v1.0  
+**最后更新**：2026-02-06  
+**维护者**：m xy
