@@ -433,13 +433,16 @@ twikoo:
 
 # Giscus：repo 已填。repo_id / category_id 必须从 https://giscus.app/zh-CN 页面的「启用」脚本里复制（选择本仓库与一个 Discussion 分类后会显示）
 giscus:
-  repo: https://github.com/foolishma/hexo-blog.git
-  repo_id: # 从 giscus 页面脚本中的 data-repo-id 复制（形如 R_kgDOxxxxx）
-  category_id: # 从 giscus 页面脚本中的 data-category-id 复制（形如 DIC_kwDOxxxxx）
-  light_theme: light
-  dark_theme: dark
+  repo: foolishma/hexo-blog
+  repo_id: R_kgDOROYECg
+  category_id: DIC_kwDOROYECs4C2WWP
+  light_theme: preferred_color_scheme
+  dark_theme: preferred_color_scheme
   js:
   option:
+    data-lang: zh-CN
+    data-input-position: bottom
+    data-mapping: pathname
 
 remark42:
   host:
