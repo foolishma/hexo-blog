@@ -17,14 +17,46 @@ permalink: 2026/02/14/frontend-engineering-build-optimization/
 
 ---
 
-## 二、Vite 迁移与配置
+## 二、适用范围与建议先记录的指标
 
-### 2.1 迁移动机与前提
+这篇文章更适合以下场景参考：
+
+- Vue/React 单体应用或多入口应用，从 Webpack 迁到 Vite（或升级 Vite 配置）
+- 需要控制产物体积、首屏加载与构建速度
+- 团队协作中希望把“配置与流程”沉淀成可复用模板
+
+在开始迁移/优化前，建议先记录一份“基线数据”，避免优化后无法证明收益（不要凭感觉）：
+
+| 指标 | 优化前 | 优化后 | 备注 |
+|---|---:|---:|---|
+| dev 冷启动耗时 |  |  | 从 `pnpm dev` 到首屏可用 |
+| HMR 响应 |  |  | 修改一个组件到页面更新 |
+| build 耗时 |  |  | 产物模式、机器配置 |
+| 主包/首屏 chunk 体积 |  |  | 建议同时记录 gzip/brotli |
+| chunk 数量 |  |  | 过多会增加请求与调度成本 |
+
+---
+
+## 三、Vite 迁移与配置
+
+### 3.1 迁移动机与前提
 
 - Webpack 冷启动与 HMR 较慢、配置复杂；Vite 基于 ESM 的 dev 体验与 Rollup 生产构建，更适合现代 Vue/React 项目。
 - 迁移前确认：依赖是否多为 ESM、是否有大量 Webpack 特有 API（如 `require.context` 需改为 `import.meta.glob`）。
 
-### 2.2 依赖预构建（optimizeDeps）
+### 3.2 迁移清单（更容易一次过）
+
+把“迁移”当成一个可验收的任务，会更稳：
+
+1. **脚本与入口**：`dev/build/preview` 脚本切到 Vite；确认入口 HTML、环境变量、别名是否都能跑通。
+2. **替换 Webpack 特性**：`require.context` → `import.meta.glob`；`process.env` → `import.meta.env`（按项目情况）。
+3. **静态资源与 base**：确认部署路径（根路径/子路径）、图片/字体引用方式、public 目录是否符合预期。
+4. **联调与代理**：dev proxy 是否与后端联调一致，生产环境是否走同一路径策略。
+5. **构建产物**：检查 sourceMap、资源 hash、缓存策略、chunk 拆分、首屏资源是否可控。
+
+建议做一个“回归清单”：路由跳转、登录态、权限、表单校验、上传下载、富文本/图表等关键功能至少跑一遍。
+
+### 3.3 依赖预构建（optimizeDeps）
 
 部分 CommonJS 或未提供 ESM 的包需显式加入预构建，否则 dev 会报错或请求过多小文件：
 
@@ -43,7 +75,7 @@ export default defineConfig({
 })
 ```
 
-### 2.3 环境变量与多环境
+### 3.4 环境变量与多环境
 
 - 根目录 `.env`、`.env.development`、`.env.production`，变量以 `VITE_` 开头才会暴露给前端。
 - 使用：`import.meta.env.VITE_APP_API_BASE`。
@@ -54,7 +86,7 @@ VITE_APP_API_BASE=/api
 VITE_APP_TITLE=本地开发
 ```
 
-### 2.4 与后端联调：proxy
+### 3.5 与后端联调：proxy
 
 开发时跨域通过 proxy 转发到后端：
 
@@ -73,7 +105,7 @@ export default defineConfig({
 })
 ```
 
-### 2.5 生产构建：拆包与体积控制
+### 3.6 生产构建：拆包与体积控制
 
 用 `manualChunks` 把大库单独打 chunk，避免首屏主 chunk 过大：
 
@@ -101,7 +133,7 @@ export default defineConfig({
 
 按路由拆 chunk 可用动态 import：`() => import('@/views/xxx.vue')`，Vite 会自动 code splitting。
 
-### 2.6 静态资源路径 base
+### 3.7 静态资源路径 base
 
 部署在子路径（如 `https://xxx.com/app/`）时：
 
@@ -113,9 +145,9 @@ export default defineConfig({
 
 ---
 
-## 三、打包体积与构建速度
+## 四、打包体积与构建速度
 
-### 3.1 体积分析
+### 4.1 体积分析
 
 安装并启用可视化分析，构建后查看各模块占比：
 
@@ -137,7 +169,7 @@ export default defineConfig({
 
 执行 `pnpm build` 后会生成 `stats.html` 并打开，便于定位大包（如 moment、lodash 全量、未按需的 UI 库）。
 
-### 3.2 组件库按需引入
+### 4.2 组件库按需引入
 
 Element Plus 按需引入，避免全量打包：
 
@@ -162,17 +194,17 @@ export default defineConfig({
 })
 ```
 
-### 3.3 大依赖 CDN 或动态导入
+### 4.3 大依赖 CDN 或动态导入
 
 - 非首屏必需的大库（如 echarts、xlsx）用 `() => import('echarts')` 动态导入，首屏不加载。
 - 或通过 `build.rollupOptions.external` + CDN 在 index.html 用 script 引入，减少主 bundle 体积。
 
-### 3.4 图片与字体
+### 4.4 图片与字体
 
 - 图片：压缩（如 vite-plugin-imagemin 或构建前用 tinypng）、优先 WebP；小图可转 base64（Vite 默认 4kb 以下内联）。
 - 字体：优先 woff2，按需加载字体文件，避免在全局 CSS 一次性拉全量字体。
 
-### 3.5 构建速度
+### 4.5 构建速度
 
 - **CI 缓存**：缓存 `node_modules` 与构建产物（如 GitHub Actions 的 `actions/cache`，key 含 `pnpm-lock.yaml` 的 hash），第二次构建明显加快。
 - **本地与 CI 统一 node 版本**：项目根目录 `.nvmrc` 写 `20` 或 `18`，CI 与本地均用同一版本，避免依赖安装差异。
@@ -180,9 +212,18 @@ export default defineConfig({
 
 ---
 
-## 四、Monorepo 与多包协作
+## 五、常见坑与注意事项（建议迁移时对照）
 
-### 4.1 pnpm workspace 结构
+- **base 与资源路径**：部署在子路径时，除了 `base` 之外还要检查路由模式、静态资源引用、以及后端是否正确回源（尤其是刷新 404）。
+- **拆包不是越碎越好**：`manualChunks` 过度拆分会导致请求数变多、缓存命中变差；以“首屏关键路径”与“缓存复用”作为拆分依据。
+- **CJS/ESM 混用**：某些依赖在 dev/build 表现不同；遇到只在 dev 出错优先看 `optimizeDeps`，只在 build 出错优先看 rollup 插件与兼容方案。
+- **环境变量**：只要面向浏览器的变量务必以 `VITE_` 开头，并避免把敏感信息直接暴露到前端。
+
+---
+
+## 六、Monorepo 与多包协作
+
+### 6.1 pnpm workspace 结构
 
 根目录 `pnpm-workspace.yaml`：
 
@@ -209,11 +250,11 @@ packages:
 
 根 `package.json` 的 scripts 可写：`"build": "pnpm -r run build"`（递归执行各包 build）。
 
-### 4.2 公共依赖提升
+### 6.2 公共依赖提升
 
 公共依赖在根目录安装一次，子包通过 `workspace:*` 或 `*` 引用；避免多份重复安装。
 
-### 4.3 Turborepo 构建顺序（可选）
+### 6.3 Turborepo 构建顺序（可选）
 
 若用 Turborepo，在 `turbo.json` 中声明依赖关系，保证先构建被依赖的包：
 
@@ -230,20 +271,20 @@ packages:
 
 `^build` 表示先执行依赖包的 build，再执行当前包。
 
-### 4.4 发布与版本号
+### 6.4 发布与版本号
 
 多包发布可用 changeset：`pnpm add -D @changesets/cli`，按 changeset 的改动文件决定哪些包需要 bump 版本并发布，避免手动改版本号。
 
 ---
 
-## 五、规范与 CI/CD
+## 七、规范与 CI/CD
 
-### 5.1 ESLint + Prettier
+### 7.1 ESLint + Prettier
 
 - ESLint 负责规则与报错，Prettier 负责格式；配合 `eslint-config-prettier` 关闭与 Prettier 冲突的规则。
 - Vue 项目常用：`eslint-plugin-vue`、`@vue/eslint-config-typescript`；保存时自动格式化（编辑器 format on save + 默认 formatter 选 Prettier）。
 
-### 5.2 提交信息规范：commitlint + husky
+### 7.2 提交信息规范：commitlint + husky
 
 ```bash
 pnpm add -D @commitlint/cli @commitlint/config-conventional husky
@@ -253,11 +294,11 @@ echo "module.exports = { extends: ['@commitlint/config-conventional'] }" > commi
 
 在 `.husky/commit-msg` 中增加：`npx --no -- commitlint --edit $1`，提交时不符合 conventional 格式会拦截。常见 type：`feat`、`fix`、`docs`、`style`、`refactor`、`chore`。
 
-### 5.3 CR 清单
+### 7.3 CR 清单
 
 在 PR 模板或 CR 说明中固定包含：功能是否自测、是否通过 lint/类型检查、是否有明显性能或安全风险、规范是否通过（命名、目录、注释等）。
 
-### 5.4 CI 流水线示例（GitHub Actions）
+### 7.4 CI 流水线示例（GitHub Actions）
 
 ```yaml
 # .github/workflows/ci.yml
@@ -284,7 +325,7 @@ jobs:
 
 ---
 
-## 六、小结
+## 八、小结
 
 - **Vite**：通过 `optimizeDeps`、`server.proxy`、`build.rollupOptions.output.manualChunks` 及环境变量、base 等完成迁移与生产可用配置。
 - **体积与速度**：用 visualizer 分析、按需引入组件库、大依赖动态导入或 CDN、图片/字体优化；CI 缓存与统一 node 版本提升构建速度。
